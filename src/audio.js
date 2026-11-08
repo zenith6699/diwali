@@ -56,7 +56,7 @@ export class Sound {
   }
   crackle(dur = 5) {
     L('crackle', dur); if (!this.ctx) return; const t = this.ctx.currentTime;
-    for (let i = 0; i < dur * 22; i++) this.noiseBurst(t + Math.random() * dur, .04 + Math.random() * .04, 'highpass', 3000 + Math.random() * 3000, 7000, .04 + Math.random() * .05, .4);
+    for (let i = 0; i < dur * 11; i++) this.noiseBurst(t + Math.random() * dur, .04 + Math.random() * .04, 'highpass', 3000 + Math.random() * 3000, 7000, .04 + Math.random() * .05, .4);
     this.noiseBurst(t, dur, 'highpass', 5200, 5800, .03, .3);
   }
   bell() {

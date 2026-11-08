@@ -188,6 +188,7 @@ const chapters = [
     caption('Aaj ki shaam, diyon ki roshni aur bas hum dono ✨');
     await wait(2);
     await cta('Light the phuljhadi');
+    try { sessionStorage.setItem('dw_ch', '1'); } catch (e) { }
     audio.crackle(6); state.sparkler = true; world.lights.couple.intensity = 7;
     tween(.9, k => couple.setSparkler(k));
     caption('Dekho, kitni pyaari lag rahi hai ye shaam…');
@@ -387,11 +388,16 @@ function tick(raw, doRender) {
 
   if (doRender) try { composer.render(); } catch (err) { if (!window.__renderErr) { window.__renderErr = 1; const e = document.getElementById('lerr') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'lerr' })); e.style.cssText = 'position:fixed;z-index:99;left:16px;right:16px;top:16px;color:#ffd9a0;font:13px system-ui;background:#000a;padding:10px;border-radius:8px'; e.textContent = 'Render error: ' + err.message; } }
 
-  // adaptive quality
+  // adaptive quality (never recompiles shaders - that freezes weak GPUs)
   acc += raw; frames++;
-  if (acc > 3 && !REC) {
+  if (acc > 2 && !REC) {
     const fps = frames / acc; acc = 0; frames = 0;
-    if (fps < 27 && perfStage < 2 && T > 4) { perfStage++; if (perfStage === 1) { PR = Math.max(1, PR * .75); resize(); } else { renderer.shadowMap.enabled = false; dir.castShadow = false; scene.traverse(o => { if (o.material) o.material.needsUpdate = true; }); } }
+    if (fps < 30 && perfStage < 3 && T > 2.5) {
+      perfStage++;
+      if (perfStage === 1) { PR = Math.max(.75, PR * .8); resize(); }
+      else if (perfStage === 2) { PR = Math.max(.6, PR * .8); bloom.enabled = false; resize(); }
+      else { PR = .6; resize(); if (dir.shadow.map) { dir.shadow.mapSize.set(512, 512); dir.shadow.map.dispose(); dir.shadow.map = null; } couple.setFurVisible?.(false); }
+    }
   }
 }
 
@@ -429,7 +435,11 @@ async function boot(rec = false) {
   hint('Ladka-ladki aa rahe hain…');
   try { await Promise.race([couple.load(), sleep(25000).then(() => { throw new Error('avatar load timeout'); })]); } catch (e) { console.error('avatar load failed', e); window.__avatarErr = String(e && e.stack || e); }
   hint('Galli ki roshni taiyaar ho rahi hai…');
-  if (!rec) { try { await Promise.race([renderer.compileAsync(scene, camera), sleep(30000)]); } catch (e) { } }
+  if (!rec) {
+    const hid = []; scene.traverse(o => { if (!o.visible) { hid.push(o); o.visible = true; } });
+    try { await Promise.race([renderer.compileAsync(scene, camera), sleep(30000)]); } catch (e) { }
+    hid.forEach(o => o.visible = false);
+  }
   couple.group.rotation.y = Math.PI;
   camSnap(V(0, 2.4, 8), V(0, 1.4, 0));
   state.night = 0;
@@ -444,10 +454,13 @@ $('#enter').addEventListener('click', async () => {
   ui.intro.classList.add('off'); $('#hud').classList.add('on');
   cam.follow = null;
   await sleep(500);
-  run(0);
+  let r0 = 0; try { r0 = +sessionStorage.getItem('dw_ch') || 0; } catch (e) { }
+  run(r0);
 });
 $('#mute').addEventListener('click', e => { audio.setMuted(!audio.muted); e.currentTarget.classList.toggle('muted', audio.muted); });
-$('#replay').addEventListener('click', () => location.reload());
+$('#replay').addEventListener('click', () => { try { sessionStorage.removeItem('dw_ch'); } catch (e) { } location.reload(); });
+canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); const l = ui.load; l.classList.remove('off'); l.style.cssText += ';opacity:1;visibility:visible'; hint('Graphics reset ho gaye… ek second, wapas aa rahe hain'); });
+canvas.addEventListener('webglcontextrestored', () => ui.load.classList.add('off'));
 $('#personalize').addEventListener('click', () => $('#edit').classList.toggle('on'));
 $('#edit').addEventListener('input', () => { CFG.to = $('#in-to').value.trim() || CFG.to; CFG.from = $('#in-from').value.trim() || CFG.from; CFG.message = $('#in-msg').value.trim(); $('#intro .to-name').textContent = CFG.to; });
 $('#in-to').value = CFG.to; $('#in-from').value = CFG.from; $('#in-msg').value = CFG.message || '';

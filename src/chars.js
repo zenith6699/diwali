@@ -286,6 +286,7 @@ export class Couple {
     bn.b.position.y = hop; bn.head.rotation.x = Math.sin(t * 2.2) * .08;
   }
   setSparkler(v) { this.sparkler = v; }
+  setFurVisible(v) { this.bunny.traverse(o => { if (o.isInstancedMesh) o.visible = v; }); }
 }
 
 function updateDupatta(G, t, wk, s) {
