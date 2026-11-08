@@ -123,29 +123,33 @@ export class Sparks {
 // ------------------------------------------------------------------ fireworks
 const BURST_VERT = `
 attribute vec3 aDir; attribute vec4 aRnd;
-uniform float uT; uniform vec3 uOrigin; uniform vec3 uColor; uniform vec3 uColor2; uniform float uScale; uniform float uSize; uniform float uLife; uniform float uGrav; uniform float uDrag;
+uniform float uT; uniform vec3 uOrigin; uniform vec3 uColor; uniform vec3 uColor2; uniform float uScale; uniform float uSize; uniform float uLife; uniform float uGrav; uniform float uDrag; uniform float uGlit;
 varying vec3 vCol; varying float vA;
+float h1(float x){ return fract(sin(x*127.1)*43758.5453); }
 void main(){
   float trail = aRnd.w;
-  float t = uT - trail*.045;
+  float t = uT - trail*.03;
   float life = uLife*(.7+aRnd.x*.6);
   if(t<0.||t>life){ gl_Position=vec4(2.,2.,2.,1.); gl_PointSize=0.; vA=0.; vCol=vec3(0.); return; }
   vec3 d = aDir*(1.-exp(-uDrag*t))/uDrag;
   d.y -= .5*uGrav*t*t;
+  d += vec3(sin(t*3.+aRnd.y*40.),0.,cos(t*2.7+aRnd.z*40.))*.35*t*aRnd.x;
   vec3 p = uOrigin + d;
   float k = t/life;
-  float tw = .6+.4*sin(t*34.+aRnd.y*50.);
-  vA = pow(1.-k,1.3)*tw*(1.-trail*.26)*(.35+.65*smoothstep(0.,.07,k));
+  float tw = .65+.35*sin(t*34.+aRnd.y*50.);
+  float glit = step(.82, h1(aRnd.y*91.+floor(t*16.+aRnd.z*9.)*7.3))*uGlit*smoothstep(.2,.5,k);
+  vA = pow(1.-k,1.15)*tw*(1.-trail*.13)*(.35+.65*smoothstep(0.,.05,k)) + glit*(1.-trail*.5)*1.4;
   vec3 c = mix(uColor, uColor2, aRnd.z);
-  c = mix(vec3(1.,.96,.85), c, smoothstep(0.,.18,k));
-  vCol = c*1.35;
+  c = mix(vec3(1.,.95,.8), c, smoothstep(0.,.14,k));
+  c = mix(c, vec3(1.7,.55,.14), smoothstep(.62,1.,k)*.75);
+  vCol = c*(1.35+glit*1.2);
   vec4 mv = modelViewMatrix*vec4(p,1.);
-  gl_PointSize = uSize*(1.-k*.45)*(1.-trail*.18)*uScale/-mv.z;
+  gl_PointSize = uSize*(1.-k*.4)*(1.-trail*.1)*(1.+glit*.7)*uScale/-mv.z;
   gl_Position = projectionMatrix*mv;
 }`;
 
 function burstGeometry(kind, n) {
-  const R = rand(kind * 17 + 3), TR = 4, N = n * TR;
+  const R = rand(kind * 17 + 3), TR = 7, N = n * TR;
   const dir = new Float32Array(N * 3), rnd = new Float32Array(N * 4);
   for (let i = 0; i < n; i++) {
     let x, y, z, sp;
@@ -169,7 +173,7 @@ export class Fireworks {
     this.geos = [burstGeometry(0, 240), burstGeometry(1, 180), burstGeometry(2, 220)];
     for (let i = 0; i < 12; i++) {
       const m = new THREE.Points(this.geos[0], additive({
-        uniforms: { uT: { value: 99 }, uOrigin: { value: new THREE.Vector3() }, uColor: { value: new THREE.Color() }, uColor2: { value: new THREE.Color() }, uScale: fxUniforms.uScale, uSize: { value: .55 }, uLife: { value: 2.6 }, uGrav: { value: 2.4 }, uDrag: { value: 2.1 } },
+        uniforms: { uT: { value: 99 }, uOrigin: { value: new THREE.Vector3() }, uColor: { value: new THREE.Color() }, uColor2: { value: new THREE.Color() }, uScale: fxUniforms.uScale, uSize: { value: .55 }, uLife: { value: 2.6 }, uGrav: { value: 2.4 }, uDrag: { value: 2.1 }, uGlit: { value: 1 } },
         vertexShader: BURST_VERT, fragmentShader: POINT_FRAG,
       }));
       m.frustumCulled = false; m.visible = false; m.userData.t0 = -99; scene.add(m); this.pool.push(m);
@@ -184,12 +188,28 @@ export class Fireworks {
         uniforms: { uT: { value: 0 }, uA: { value: new THREE.Vector3() }, uB: { value: new THREE.Vector3() }, uDur: { value: 1 }, uScale: fxUniforms.uScale },
         vertexShader: `attribute float aI; uniform float uT; uniform vec3 uA; uniform vec3 uB; uniform float uDur; uniform float uScale; varying vec3 vCol; varying float vA;
           void main(){ float t=clamp((uT-aI*.028)/uDur,0.,1.); t=1.-(1.-t)*(1.-t); vec3 p=mix(uA,uB,t); p.x+=sin(uT*30.+aI)*.04;
-            vA=(1.-aI/14.)*(uT<uDur+.1?1.:0.)*step(0.,uT-aI*.028); vCol=vec3(2.6,1.7,.7); vec4 mv=modelViewMatrix*vec4(p,1.); gl_PointSize=.35*(1.-aI/20.)*uScale/-mv.z; gl_Position=projectionMatrix*mv; }`,
+            vA=(1.-aI/14.)*(uT<uDur+.1?1.:0.)*step(0.,uT-aI*.028); vCol=vec3(3.2,1.9,.7); vec4 mv=modelViewMatrix*vec4(p,1.); gl_PointSize=.45*(1.-aI/20.)*uScale/-mv.z; gl_Position=projectionMatrix*mv; }`,
         fragmentShader: POINT_FRAG,
       }));
       m.frustumCulled = false; m.visible = false; m.userData.t0 = -99; scene.add(m); this.rockets.push(m);
     }
     this.textPts = null;
+    // lingering smoke, lit by the burst colour
+    const SN = 46, sg = new THREE.BufferGeometry(), sd = new Float32Array(SN * 3), sr = new Float32Array(SN * 2); const SR = rand(77);
+    for (let i = 0; i < SN; i++) { const u = SR() * 2 - 1, a = SR() * 6.283, r = Math.sqrt(1 - u * u), sp = 1 + SR() * 5; sd.set([Math.cos(a) * r * sp, u * sp, Math.sin(a) * r * sp], i * 3); sr.set([SR(), SR()], i * 2); }
+    sg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(SN * 3), 3)); sg.setAttribute('aDir', new THREE.BufferAttribute(sd, 3)); sg.setAttribute('aRnd', new THREE.BufferAttribute(sr, 2));
+    this.smokes = this.pool.map(() => {
+      const m = new THREE.Points(sg, new THREE.ShaderMaterial({
+        transparent: true, depthWrite: false, fog: false,
+        uniforms: { uT: { value: 99 }, uOrigin: { value: new THREE.Vector3() }, uLit: { value: new THREE.Color() }, uScale: fxUniforms.uScale, uSize: { value: 6 } },
+        vertexShader: `attribute vec3 aDir; attribute vec2 aRnd; uniform float uT; uniform vec3 uOrigin; uniform float uScale; uniform float uSize; varying float vA; varying float vL;
+          void main(){ float t=uT; vec3 p=uOrigin+aDir*(1.-exp(-.9*t))*1.3+vec3(1.2*t*(.5+aRnd.x),.35*t,0.); float k=clamp(t/6.5,0.,1.);
+            vA=smoothstep(.4,1.6,t)*(1.-k)*(1.-k)*.1; vL=exp(-t*1.1); vec4 mv=modelViewMatrix*vec4(p,1.); gl_PointSize=uSize*(.6+aRnd.y*.8)*(1.+t*.5)*uScale/-mv.z; gl_Position=projectionMatrix*mv; }`,
+        fragmentShader: `uniform vec3 uLit; varying float vA; varying float vL; void main(){ vec2 c=gl_PointCoord-.5; float d=length(c)*2.; if(d>1.)discard; float a=pow(1.-d,1.6)*vA; gl_FragColor=vec4(vec3(.1,.085,.09)+uLit*vL*.25,a); }`,
+      }));
+      m.frustumCulled = false; m.visible = false; m.renderOrder = 3; scene.add(m); return m;
+    });
+    this.light = new THREE.PointLight(0xffffff, 0, 400, 1.2); scene.add(this.light); this.lightK = 0;
   }
   schedule(delay, fn) { this.timers.push({ at: this.time + delay, fn }); }
   launch(origin, target, color, color2, kind = 0, size = .55) {
@@ -205,6 +225,8 @@ export class Fireworks {
     b.geometry = this.geos[kind]; b.visible = true; b.userData.t0 = this.time;
     const u = b.material.uniforms; u.uOrigin.value.copy(pos); u.uColor.value.set(color); u.uColor2.value.set(color2 ?? color); u.uSize.value = size * 1.15;
     u.uLife.value = kind === 2 ? 3.4 : 2.7; u.uGrav.value = kind === 2 ? 4.4 : 2.4; u.uDrag.value = kind === 2 ? 1.6 : 2.1;
+    { const i = this.pool.indexOf(b), sm = this.smokes[i]; sm.visible = true; sm.userData.t0 = this.time; sm.material.uniforms.uOrigin.value.copy(pos); sm.material.uniforms.uLit.value.set(color).multiplyScalar(1.1); sm.material.uniforms.uSize.value = 3 + size * 4;
+      this.light.color.set(color); this.light.position.copy(pos).add(new THREE.Vector3(0, -6, 18)); this.lightK = 1; }
     this.flash = Math.min(.8, this.flash + .35);
     this.audio?.boom(clamp(pos.length() / 90, .3, 1));
   }
@@ -259,6 +281,8 @@ export class Fireworks {
     this.time += dt;
     for (let i = this.timers.length - 1; i >= 0; i--) if (this.timers[i].at <= this.time) { const f = this.timers[i].fn; this.timers.splice(i, 1); f(); }
     for (const b of this.pool) if (b.visible) { const t = this.time - b.userData.t0; b.material.uniforms.uT.value = t; if (t > 4.4) b.visible = false; }
+    this.smokes.forEach(sm => { if (sm.visible) { const t = this.time - sm.userData.t0; sm.material.uniforms.uT.value = t; if (t > 6.8) sm.visible = false; } });
+    this.lightK = Math.max(0, this.lightK - dt * 1.8); this.light.intensity = this.lightK * this.lightK * 900;
     for (const r of this.rockets) if (r.visible) { const t = this.time - r.userData.t0; r.material.uniforms.uT.value = t; if (t > r.userData.dur + .6) r.visible = false; }
     if (this.textPts?.active) {
       const t = this.time - this.textPts.t0; this.textPts.m.material.uniforms.uT.value = t;
