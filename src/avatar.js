@@ -104,7 +104,7 @@ function prep(root) {
 function makeBoy(root) {
   prep(root);
   const rig = new Rig(root); const M = {}; root.traverse(o => { if (o.isMesh) M[o.name] = o; });
-  M.Wolf3D_Headwear.visible = false; M.Wolf3D_Beard.visible = false;
+  if (M.Wolf3D_Headwear) M.Wolf3D_Headwear.visible = false; if (M.Wolf3D_Beard) M.Wolf3D_Beard.visible = false;
   tintSkin(M.Wolf3D_Head.material, [.97, .82, .68]); M.Wolf3D_Body.material = M.Wolf3D_Head.material;
   plainCloth(M.Wolf3D_Outfit_Top, 0xf1e2c4, { rough: .72, sheen: .6 });
   plainCloth(M.Wolf3D_Outfit_Bottom, 0xeadcc0, { rough: .78, sheen: .5 });
