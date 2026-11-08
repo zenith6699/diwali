@@ -113,7 +113,7 @@ export function makeGirl() {
 
 export const furUni = { uSunDir: { value: new THREE.Vector3(-.4, .8, .5).normalize() }, uSunCol: { value: new THREE.Color(1, .8, .55) }, uAmb: { value: new THREE.Color(.45, .38, .36) }, uWarm: { value: new THREE.Color(0, 0, 0) } };
 // shell-fur: N extruded copies of an ellipsoid; strands are 3-D hash cells that taper towards the tip
-const SHELLS = 16;
+const SHELLS = window.__LOW ? 5 : 16;
 function furMat(base, tip, len, dens) {
   return new THREE.ShaderMaterial({
     uniforms: { ...furUni, uBase: { value: new THREE.Color(base) }, uTip: { value: new THREE.Color(tip) }, uLen: { value: len }, uDens: { value: dens } },

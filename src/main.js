@@ -35,11 +35,14 @@ if (!gl2) {
   e.innerHTML = 'Is jagah 3D graphics (WebGL2) chalu nahi hai.<br>Is link ko <b>Chrome / Edge / Safari</b> mein kholo (hardware acceleration ON ke saath).';
   window.__noGL = 1; throw new Error('WebGL2 unavailable');
 }
+let GPU = ''; try { const ex = gl2.getExtension('WEBGL_debug_renderer_info'); GPU = ex ? String(gl2.getParameter(ex.UNMASKED_RENDERER_WEBGL)) : ''; } catch (e) { }
+export const LOW = !qs.has('hq') && (qs.has('low') || /swiftshader|llvmpipe|software|basic render|softpipe/i.test(GPU));
+window.__LOW = LOW; window.__GPU = GPU;
 const renderer = new THREE.WebGLRenderer({ canvas, context: gl2, antialias: false });
 const isMobile = matchMedia('(pointer:coarse)').matches || innerWidth < 700;
-let PR = Math.min(devicePixelRatio || 1, isMobile ? 1.5 : 2);
+let PR = LOW ? 1 : Math.min(devicePixelRatio || 1, isMobile ? 1.5 : 2);
 renderer.setPixelRatio(PR);
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.enabled = !LOW; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
@@ -47,7 +50,7 @@ scene.fog = new THREE.FogExp2(0x94574d, .0085);
 const camera = new THREE.PerspectiveCamera(50, 1, .1, 1200);
 
 const hemi = new THREE.HemisphereLight(0xffb0c8, 0x6a2a5a, 1.1); scene.add(hemi);
-const dir = new THREE.DirectionalLight(0xffc48a, 2.3); dir.castShadow = true;
+const dir = new THREE.DirectionalLight(0xffc48a, 2.3); dir.castShadow = !LOW;
 const SM = +(qs.get('sm') || 2048); dir.shadow.mapSize.set(SM, SM); const sc = dir.shadow.camera; sc.left = -16; sc.right = 16; sc.top = 16; sc.bottom = -16; sc.near = 1; sc.far = 60;
 dir.shadow.bias = -.0005; dir.shadow.normalBias = .04; scene.add(dir, dir.target);
 
@@ -71,10 +74,10 @@ const lanterns = new Lanterns(scene);
 const sparkLight = new THREE.PointLight(0xffc070, 0, 8, 1.6); scene.add(sparkLight);
 
 let composer;
-try { composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: qs.has('ms') ? +qs.get('ms') : (isMobile ? 2 : 4) })); }
+try { composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: qs.has('ms') ? +qs.get('ms') : (LOW ? 0 : isMobile ? 2 : 4) })); }
 catch (e) { composer = new EffectComposer(renderer); }
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .5, .7, 1.05); if (qs.get('bloom') !== '0') composer.addPass(bloom);
+const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .5, .7, 1.05); if (qs.get('bloom') !== '0' && !LOW) composer.addPass(bloom);
 composer.addPass(new OutputPass());
 const grade = new ShaderPass({
   uniforms: { tDiffuse: { value: null }, uT: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) } },
@@ -419,9 +422,14 @@ if (REC) {
 }
 
 // ------------------------------------------------------------------ boot
+const hint = t => { const h = document.getElementById('lhint'); if (h) h.firstChild.textContent = t; };
 async function boot(rec = false) {
+  hint('Graphics shuru ho rahe hain…');
   try { await Promise.race([document.fonts.ready, sleep(2500)]); } catch (e) { }
-  try { await couple.load(); } catch (e) { console.error('avatar load failed', e); window.__avatarErr = String(e && e.stack || e); }
+  hint('Ladka-ladki aa rahe hain…');
+  try { await Promise.race([couple.load(), sleep(25000).then(() => { throw new Error('avatar load timeout'); })]); } catch (e) { console.error('avatar load failed', e); window.__avatarErr = String(e && e.stack || e); }
+  hint('Galli ki roshni taiyaar ho rahi hai…');
+  if (!rec) { try { await Promise.race([renderer.compileAsync(scene, camera), sleep(30000)]); } catch (e) { } }
   couple.group.rotation.y = Math.PI;
   camSnap(V(0, 2.4, 8), V(0, 1.4, 0));
   state.night = 0;

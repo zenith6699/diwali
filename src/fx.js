@@ -209,7 +209,7 @@ export class Fireworks {
       }));
       m.frustumCulled = false; m.visible = false; m.renderOrder = 3; scene.add(m); return m;
     });
-    this.light = new THREE.PointLight(0xffffff, 0, 400, 1.2); scene.add(this.light); this.lightK = 0;
+    this.lightK = 0;
   }
   schedule(delay, fn) { this.timers.push({ at: this.time + delay, fn }); }
   launch(origin, target, color, color2, kind = 0, size = .55) {
@@ -226,7 +226,7 @@ export class Fireworks {
     const u = b.material.uniforms; u.uOrigin.value.copy(pos); u.uColor.value.set(color); u.uColor2.value.set(color2 ?? color); u.uSize.value = size * 1.15;
     u.uLife.value = kind === 2 ? 3.4 : 2.7; u.uGrav.value = kind === 2 ? 4.4 : 2.4; u.uDrag.value = kind === 2 ? 1.6 : 2.1;
     { const i = this.pool.indexOf(b), sm = this.smokes[i]; sm.visible = true; sm.userData.t0 = this.time; sm.material.uniforms.uOrigin.value.copy(pos); sm.material.uniforms.uLit.value.set(color).multiplyScalar(1.1); sm.material.uniforms.uSize.value = 3 + size * 4;
-      this.light.color.set(color); this.light.position.copy(pos).add(new THREE.Vector3(0, -6, 18)); this.lightK = 1; }
+      this.lightK = 1; this.flashCol = new THREE.Color(color); }
     this.flash = Math.min(.8, this.flash + .35);
     this.audio?.boom(clamp(pos.length() / 90, .3, 1));
   }
@@ -282,7 +282,7 @@ export class Fireworks {
     for (let i = this.timers.length - 1; i >= 0; i--) if (this.timers[i].at <= this.time) { const f = this.timers[i].fn; this.timers.splice(i, 1); f(); }
     for (const b of this.pool) if (b.visible) { const t = this.time - b.userData.t0; b.material.uniforms.uT.value = t; if (t > 4.4) b.visible = false; }
     this.smokes.forEach(sm => { if (sm.visible) { const t = this.time - sm.userData.t0; sm.material.uniforms.uT.value = t; if (t > 6.8) sm.visible = false; } });
-    this.lightK = Math.max(0, this.lightK - dt * 1.8); this.light.intensity = this.lightK * this.lightK * 900;
+    this.lightK = Math.max(0, this.lightK - dt * 1.8);
     for (const r of this.rockets) if (r.visible) { const t = this.time - r.userData.t0; r.material.uniforms.uT.value = t; if (t > r.userData.dur + .6) r.visible = false; }
     if (this.textPts?.active) {
       const t = this.time - this.textPts.t0; this.textPts.m.material.uniforms.uT.value = t;
