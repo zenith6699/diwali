@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Happy Diwali ♥ — a little 3D surprise</title>
+<style>/*FONTS*/</style>
+<style>
+:root{--gold:#ffd27a;--gold2:#ffb347;--rose:#ff4d7d;--ink:#2a0a1e;--pad:max(18px,env(safe-area-inset-bottom))}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#12040f;overflow:hidden;font-family:'DM Sans',system-ui,sans-serif;color:#fff4e0}
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(18,2,16,.55) 100%)}
+button{font:inherit;color:inherit;cursor:pointer}
+
+/* loading */
+#loading{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:#12040f;transition:opacity .8s,visibility .8s}
+#loading.off{opacity:0;visibility:hidden}
+#loading .d{width:34px;height:34px;border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:radial-gradient(circle at 50% 70%,#fff6c0,#ffb347 55%,#ff6a1a);box-shadow:0 0 40px 10px rgba(255,150,40,.55);animation:fl 1.1s ease-in-out infinite alternate}
+@keyframes fl{to{transform:scale(1.15,1.3) translateY(-3px);filter:brightness(1.2)}}
+
+/* intro */
+#intro{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 50%,rgba(26,4,26,.55),rgba(14,2,16,.82));transition:opacity 1s,visibility 1s}
+#intro.off{opacity:0;visibility:hidden;pointer-events:none}
+.card{max-width:440px;width:100%;text-align:center;padding:38px 28px 28px;border-radius:28px;background:linear-gradient(160deg,rgba(255,255,255,.1),rgba(255,255,255,.03));border:1px solid rgba(255,214,150,.28);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.18)}
+.diya{width:54px;height:54px;margin:0 auto 10px;position:relative}
+.diya:before{content:"";position:absolute;left:50%;top:0;width:16px;height:26px;margin-left:-8px;border-radius:50% 50% 50% 50%/65% 65% 35% 35%;background:radial-gradient(circle at 50% 75%,#fff8d0,#ffb347 55%,#ff6a1a);box-shadow:0 0 30px 8px rgba(255,150,40,.6);animation:fl 1s ease-in-out infinite alternate}
+.diya:after{content:"";position:absolute;left:3px;right:3px;bottom:6px;height:22px;border-radius:0 0 50px 50px;background:linear-gradient(#d9622b,#9c3a1a);box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.hi{font-family:'Yatra One',serif;font-size:19px;letter-spacing:.18em;color:var(--gold);margin:0 0 4px}
+h1{font:italic 700 58px/1.02 'Cormorant Garamond',Georgia,serif;margin:0 0 12px;background:linear-gradient(180deg,#fff7dc,#ffc15a 60%,#ff8a3d);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 18px rgba(255,140,40,.35))}
+.card p{margin:0 0 22px;font-size:16px;line-height:1.55;color:rgba(255,240,225,.82)}
+.card b{color:#ffd9a0;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 34px;border-radius:999px;border:1px solid rgba(255,225,170,.7);background:linear-gradient(180deg,#ffcf7a,#ff9f45);color:#4a1408;font-weight:600;font-size:17px;letter-spacing:.02em;box-shadow:0 10px 30px rgba(255,140,40,.45),inset 0 1px 0 rgba(255,255,255,.6);transition:transform .2s,box-shadow .2s}
+.btn:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 14px 38px rgba(255,140,40,.6),inset 0 1px 0 rgba(255,255,255,.6)}
+.btn:active{transform:scale(.97)}
+.small{display:block;margin-top:16px;font-size:12.5px;color:rgba(255,230,200,.6)}
+.link{background:none;border:0;padding:6px;margin-top:6px;font-size:12.5px;color:rgba(255,214,150,.75);text-decoration:underline;text-underline-offset:3px}
+#edit{display:none;text-align:left;margin-top:12px}#edit.on{display:block}
+#edit input,#edit textarea{width:100%;margin:5px 0;padding:11px 14px;border-radius:12px;border:1px solid rgba(255,214,150,.25);background:rgba(0,0,0,.28);color:#fff4e0;font:inherit;font-size:14px;outline:0}
+#edit input:focus,#edit textarea:focus{border-color:var(--gold)}
+#edit label{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,214,150,.7)}
+
+/* hud */
+#hud{position:fixed;inset:0;z-index:10;pointer-events:none;opacity:0;transition:opacity 1s}
+#hud.on{opacity:1}
+#dots{position:absolute;top:max(18px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;gap:7px}
+#dots i{width:22px;height:3px;border-radius:3px;background:rgba(255,230,200,.25);transition:background .6s,box-shadow .6s}
+#dots i.on{background:var(--gold);box-shadow:0 0 10px rgba(255,200,100,.7)}
+#mute{pointer-events:auto;position:absolute;top:max(10px,env(safe-area-inset-top));right:14px;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,214,150,.35);background:rgba(30,6,24,.4);backdrop-filter:blur(10px);display:grid;place-items:center}
+#mute svg{width:19px;height:19px;fill:none;stroke:#ffe3b3;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#mute .x{display:none}#mute.muted .w{display:none}#mute.muted .x{display:block}
+#caption{position:absolute;left:0;right:0;bottom:calc(var(--pad) + 104px);text-align:center;padding:0 26px;font:italic 500 clamp(21px,5.2vw,30px)/1.3 'Cormorant Garamond',Georgia,serif;text-shadow:0 2px 18px rgba(20,0,20,.9),0 0 4px rgba(20,0,20,.7);opacity:0;transform:translateY(8px);transition:opacity .9s,transform .9s}
+#caption.on{opacity:1;transform:none}
+#cta{pointer-events:auto;position:absolute;left:50%;bottom:calc(var(--pad) + 28px);transform:translate(-50%,24px);opacity:0;visibility:hidden;display:flex;align-items:center;gap:10px;padding:16px 30px;border-radius:999px;border:1px solid rgba(255,214,150,.6);background:rgba(44,8,34,.5);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);font-weight:600;font-size:17px;color:#fff4e0;white-space:nowrap;box-shadow:0 10px 34px rgba(0,0,0,.4),0 0 0 0 rgba(255,190,90,.5),inset 0 1px 0 rgba(255,255,255,.2);transition:opacity .7s,transform .7s,visibility .7s}
+#cta.on{opacity:1;visibility:visible;transform:translate(-50%,0);animation:pulse 2.2s ease-out infinite}
+#cta:before{content:"✦";color:var(--gold)}
+#cta:active{transform:translate(-50%,0) scale(.96)}
+@keyframes pulse{0%{box-shadow:0 10px 34px rgba(0,0,0,.4),0 0 0 0 rgba(255,190,90,.5),inset 0 1px 0 rgba(255,255,255,.2)}70%,100%{box-shadow:0 10px 34px rgba(0,0,0,.4),0 0 0 18px rgba(255,190,90,0),inset 0 1px 0 rgba(255,255,255,.2)}}
+
+#fade{position:fixed;inset:0;z-index:30;pointer-events:none;opacity:0;transition:opacity .8s;background:#fff1d0}
+
+/* letter */
+#letter{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:22px;background:rgba(14,2,16,.62);backdrop-filter:blur(6px);opacity:0;visibility:hidden;transition:opacity .7s,visibility .7s}
+#letter.on{opacity:1;visibility:visible}
+.paper{position:relative;max-width:430px;width:100%;max-height:86vh;overflow:auto;padding:36px 30px 26px;border-radius:6px 22px 6px 22px;background:linear-gradient(170deg,#fff6e2,#ffe9c4);color:#5a2316;box-shadow:0 30px 90px rgba(0,0,0,.6),inset 0 0 60px rgba(214,150,70,.28);border:1px solid #e8b96b;transform:translateY(30px) rotate(-1.2deg) scale(.96);transition:transform .9s cubic-bezier(.2,.9,.3,1.1)}
+#letter.on .paper{transform:none}
+.paper:before{content:"";position:absolute;inset:9px;border:1.5px solid rgba(200,130,50,.5);border-radius:3px 16px 3px 16px;pointer-events:none}
+.paper .body{font:400 21px/1.62 'Kalam','Segoe Print',cursive;white-space:pre-line;margin:0 0 14px}
+.paper .from{font:700 22px 'Kalam',cursive;text-align:right;color:#a3281f;margin:0 0 20px}
+.paper .btn{display:flex;margin:0 auto;padding:12px 28px;font-size:16px}
+.mari{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:30px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.3))}
+
+/* final */
+#final{position:fixed;inset:0;z-index:15;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:max(11vh,70px) 24px calc(var(--pad) + 28px);text-align:center;pointer-events:none;opacity:0;transition:opacity 2s 1s}
+#final.on{opacity:1}
+#final h2{font:italic 700 clamp(44px,13vw,84px)/1 'Cormorant Garamond',serif;margin:0;background:linear-gradient(180deg,#fff7dc,#ffc15a 60%,#ff8a3d);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 24px rgba(255,140,40,.45))}
+#final .hi{margin:10px 0 2px}
+#final .names{font:italic 500 clamp(22px,6vw,32px) 'Cormorant Garamond',serif;color:#ffd7e0;text-shadow:0 2px 14px rgba(0,0,0,.6)}
+#final .btn{pointer-events:auto;background:rgba(44,8,34,.5);color:#fff4e0;border-color:rgba(255,214,150,.6);box-shadow:0 10px 30px rgba(0,0,0,.4);backdrop-filter:blur(14px);padding:12px 26px;font-size:15px}
+@media (max-width:480px){h1{font-size:50px}.card{padding:32px 22px 22px}}
+body.rec *{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<canvas id="stage"></canvas><div class="vig"></div>
+
+<div id="loading"><div class="d"></div></div>
+
+<div id="intro">
+  <div class="card">
+    <div class="diya"></div>
+    <p class="hi">शुभ दीपावली</p>
+    <h1>Happy Diwali</h1>
+    <p>Ek chhota sa 3D surprise, sirf <b class="to-name">tumhare</b> ke liye.<br>Headphones laga lo aur screen pe tap karte jao ✨</p>
+    <button class="btn" id="enter">Shuru karein &nbsp;→</button>
+    <span class="small">🔊 Sound ke saath behtar lagta hai</span>
+    <button class="link" id="personalize">✎ Naam &amp; message badlo</button>
+    <div id="edit">
+      <label>Uska naam</label><input id="in-to" maxlength="24" autocomplete="off">
+      <label>Tumhara naam</label><input id="in-from" maxlength="24" autocomplete="off">
+      <label>Letter (khaali chhodo toh default)</label><textarea id="in-msg" rows="4" maxlength="500"></textarea>
+    </div>
+  </div>
+</div>
+
+<div id="hud">
+  <div id="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <button id="mute" aria-label="Sound"><svg viewBox="0 0 24 24"><path class="w" d="M4 9v6h4l5 4V5L8 9H4zM16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/><path class="x" d="M4 9v6h4l5 4V5L8 9H4zM17 9l5 6M22 9l-5 6"/></svg></button>
+  <div id="caption"></div>
+  <button id="cta"><span></span></button>
+</div>
+
+<div id="fade"></div>
+
+<div id="letter"><div class="paper"><div class="mari">🪔</div><div class="to"></div><div class="body"></div><div class="from"></div><button class="btn">Dil se shukriya ♥</button></div></div>
+
+<div id="final"><div><p class="hi">शुभ दीपावली</p><h2>Happy Diwali</h2><div class="names"></div></div><button class="btn" id="replay">↺ &nbsp;Phir se dekho</button></div>
+
+<script>
+(function(){
+  function show(msg){if(window.__noGL)return;var l=document.getElementById('loading');if(!l)return;l.classList.remove('off');l.style.opacity=1;l.style.visibility='visible';
+    var e=document.getElementById('lerr');if(!e){e=document.createElement('div');e.id='lerr';e.style.cssText='position:absolute;left:20px;right:20px;bottom:12%;text-align:center;font:14px/1.5 system-ui,sans-serif;color:#ffd9a0';l.appendChild(e);}
+    e.textContent=msg;}
+  window.addEventListener('error',function(ev){show('Oops: '+(ev.message||'error')+' — screenshot bhej do');});
+  window.addEventListener('unhandledrejection',function(ev){show('Oops: '+(ev.reason&&ev.reason.message||ev.reason));});
+})();
+</script>
+<script>window.CONFIG={to:"Jaanu",from:"Tumhara apna",message:""};</script>
+<script>/*BUNDLE*/</script>
+</body>
+</html>
