@@ -12,7 +12,7 @@ In `template.html` edit `window.CONFIG = { to: "Jaanu", from: "Tumhara apna", me
 ```
 npm install
 node build.mjs     # writes dist.html
-cp dist.html index.html
+cp dist.html index.html && cp dist.html build/index.html   # build/ is what Render publishes
 ```
 
 ## Notes
