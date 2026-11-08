@@ -39,7 +39,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, context: gl2, antialias: fals
 const isMobile = matchMedia('(pointer:coarse)').matches || innerWidth < 700;
 let PR = Math.min(devicePixelRatio || 1, isMobile ? 1.5 : 2);
 renderer.setPixelRatio(PR);
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
