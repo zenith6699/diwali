@@ -5,6 +5,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
 import { buildWorld, SH } from './world.js';
 import { Couple, furUni } from './chars.js';
 import { makeSky, Sparks, Fireworks, Petals, Lanterns, fxUniforms, flameUni } from './fx.js';
@@ -25,10 +26,11 @@ if (REC) Math.random = rand(20241108);
 let SAFE = 0, RESUME = 0;
 if (!REC && !qs.has('hq') && !qs.has('nosafe')) {
   try {
-    const hb = +localStorage.getItem('dw_hb') || 0; SAFE = +localStorage.getItem('dw_safe') || 0;
-    if (hb && Date.now() - hb < 20000) { SAFE = Math.min(2, SAFE + 1); localStorage.setItem('dw_safe', SAFE); RESUME = localStorage.getItem('dw_ch') === '0b' ? .5 : (+localStorage.getItem('dw_ch') || 0); }
+    const hb = +localStorage.getItem('dw_hb') || 0; SAFE = (Date.now() - (+localStorage.getItem('dw_safe_t') || 0) < 6e5) ? (+localStorage.getItem('dw_safe') || 0) : 0; // a past crash only lightens the next ~10 minutes
+    if (hb && Date.now() - hb < 20000) { SAFE = Math.min(2, SAFE + 1); localStorage.setItem('dw_safe', SAFE); localStorage.setItem('dw_safe_t', Date.now()); RESUME = localStorage.getItem('dw_ch') === '0b' ? .5 : (+localStorage.getItem('dw_ch') || 0); }
     setInterval(() => { try { localStorage.setItem('dw_hb', Date.now()); } catch (e) { } }, 1500);
     localStorage.setItem('dw_hb', Date.now());
+    setTimeout(() => { try { localStorage.setItem('dw_safe', Math.max(0, SAFE - 1)); } catch (e) { } }, 40000); // ran 40 s without dying -> next visit goes back up in quality
     const bye = () => { try { localStorage.removeItem('dw_hb'); } catch (e) { } };
     addEventListener('pagehide', bye); document.addEventListener('visibilitychange', () => { if (document.hidden) bye(); else { try { localStorage.setItem('dw_hb', Date.now()); } catch (e) { } } });
   } catch (e) { }
@@ -56,7 +58,7 @@ window.__LOW = LOW; window.__GPU = GPU;
 const renderer = new THREE.WebGLRenderer({ canvas, context: gl2, antialias: false });
 const isMobile = matchMedia('(pointer:coarse)').matches || innerWidth < 700;
 let baseFov = 50;
-let PR = LOW ? 1 : Math.min(devicePixelRatio || 1, SAFE >= 2 ? .8 : SAFE ? 1 : isMobile ? 1.25 : 2);
+let PR = LOW ? 1 : Math.min(devicePixelRatio || 1, SAFE >= 2 ? 1 : SAFE ? 1.25 : isMobile ? 1.75 : 2);
 renderer.setPixelRatio(PR);
 const NOSH = LOW || SAFE >= 2; renderer.shadowMap.enabled = !NOSH; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
@@ -95,18 +97,20 @@ catch (e) { composer = new EffectComposer(renderer); }
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .5, .7, 1.05); if (qs.get('bloom') !== '0' && !LOW && !SAFE) composer.addPass(bloom);
 composer.addPass(new OutputPass());
+// no MSAA on phones/weak GPUs -> a cheap FXAA pass keeps edges (hair, fur, rails, text) crisp instead of shimmering
+const fxaa = new ShaderPass(FXAAShader); fxaa.enabled = !qs.has('ms') && !LOW && SAFE < 2 && (isMobile || SAFE > 0); if (fxaa.enabled) composer.addPass(fxaa);
 const grade = new ShaderPass({
   uniforms: { tDiffuse: { value: null }, uT: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
   fragmentShader: `uniform sampler2D tDiffuse; uniform float uT; uniform vec2 uRes; varying vec2 vUv;
     float hash(vec2 p){ p=fract(p*vec2(443.897,441.423)); p+=dot(p,p.yx+19.19); return fract((p.x+p.y)*p.x); }
-    void main(){ vec2 d=vUv-.5; float r2=dot(d,d); vec2 off=d*r2*.018;
+    void main(){ vec2 d=vUv-.5; float r2=dot(d,d); vec2 off=d*r2*.005;
       vec3 col=vec3(texture2D(tDiffuse,vUv+off).r,texture2D(tDiffuse,vUv).g,texture2D(tDiffuse,vUv-off).b);
       float l=dot(col,vec3(.299,.587,.114));
       col=mix(col,col*vec3(1.05,1.0,.92),smoothstep(.35,1.,l)); col+=vec3(-.006,.003,.014)*(1.-l);
       col=mix(col,col*col*(3.-2.*col),.28);
       col*=1.-smoothstep(.22,.82,length(d*vec2(1.,1.1)))*.55;
-      float g=hash(vUv*uRes+fract(uT*7.13)*61.7)+hash(vUv*uRes*.5+fract(uT*3.1)*17.3)-1.; col+=g*.032*(1.-l*.55);
+      float g=hash(vUv*uRes+fract(uT*7.13)*61.7)+hash(vUv*uRes*.5+fract(uT*3.1)*17.3)-1.; col+=g*.011*(1.-l*.55);
       gl_FragColor=vec4(col,1.); }`,
 });
 composer.addPass(grade);
@@ -116,7 +120,7 @@ function resize() {
   const w = innerWidth, h = innerHeight, a = w / h;
   renderer.setPixelRatio(PR); renderer.setSize(w, h, false); composer.setPixelRatio(PR); composer.setSize(w, h);
   camera.aspect = a; baseFov = a < .8 ? 64 : a < 1.2 ? 54 : 46; camera.fov = baseFov; camera.updateProjectionMatrix();
-  grade.uniforms.uRes.value.set(w * PR, h * PR); fxUniforms.uScale.value = (h * PR) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)); fxUniforms.uPR.value = PR;
+  grade.uniforms.uRes.value.set(w * PR, h * PR); fxaa.material.uniforms.resolution.value.set(1 / (w * PR), 1 / (h * PR)); fxUniforms.uScale.value = (h * PR) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)); fxUniforms.uPR.value = PR;
 }
 addEventListener('resize', resize); resize();
 
