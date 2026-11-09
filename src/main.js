@@ -14,7 +14,7 @@ import { makeShot } from './director.js';
 import { buildRoom, ROOM_X } from './room.js';
 import { ease, clamp, lerp, sleep, rand } from './util.js';
 
-const CFG = Object.assign({ to: 'Jaanu', from: 'Tumhara apna', message: '' }, window.CONFIG || {});
+const CFG = Object.assign({ to: 'Luit', from: 'Chandu', message: '' }, window.CONFIG || {});
 const $ = s => document.querySelector(s);
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const qs = new URLSearchParams(location.search);
@@ -529,7 +529,4 @@ $('#mute').addEventListener('click', e => { audio.setMuted(!audio.muted); e.curr
 $('#replay').addEventListener('click', () => { try { sessionStorage.removeItem('dw_ch'); localStorage.removeItem('dw_ch'); } catch (e) { } location.reload(); });
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); const l = ui.load; l.classList.remove('off'); l.style.cssText += ';opacity:1;visibility:visible'; hint('Graphics reset ho gaye… ek second, wapas aa rahe hain'); });
 canvas.addEventListener('webglcontextrestored', () => ui.load.classList.add('off'));
-$('#personalize').addEventListener('click', () => $('#edit').classList.toggle('on'));
-$('#edit').addEventListener('input', () => { CFG.to = $('#in-to').value.trim() || CFG.to; CFG.from = $('#in-from').value.trim() || CFG.from; CFG.message = $('#in-msg').value.trim(); $('#intro .to-name').textContent = CFG.from; });
-$('#in-to').value = CFG.to; $('#in-from').value = CFG.from; $('#in-msg').value = CFG.message || '';
 if (!REC) boot();
