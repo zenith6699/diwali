@@ -90,10 +90,11 @@ h1{font:italic 700 58px/1.02 'Cormorant Garamond',Georgia,serif;margin:0 0 12px;
 /* final */
 #final{position:fixed;inset:0;z-index:15;display:flex;flex-direction:column;justify-content:space-between;align-items:center;padding:max(11vh,70px) 24px calc(var(--pad) + 28px);text-align:center;pointer-events:none;opacity:0;transition:opacity 2s 1s}
 #final.on{opacity:1}
+#final.on .btn{pointer-events:auto;visibility:visible}
 #final h2{font:italic 700 clamp(44px,13vw,84px)/1 'Cormorant Garamond',serif;margin:0;background:linear-gradient(180deg,#fff7dc,#ffc15a 60%,#ff8a3d);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 24px rgba(255,140,40,.45))}
 #final .hi{margin:10px 0 2px}
 #final .names{font:italic 500 clamp(22px,6vw,32px) 'Cormorant Garamond',serif;color:#ffd7e0;text-shadow:0 2px 14px rgba(0,0,0,.6)}
-#final .btn{pointer-events:auto;background:rgba(44,8,34,.5);color:#fff4e0;border-color:rgba(255,214,150,.6);box-shadow:0 10px 30px rgba(0,0,0,.4);backdrop-filter:blur(14px);padding:12px 26px;font-size:15px}
+#final .btn{pointer-events:none;visibility:hidden;background:rgba(44,8,34,.5);color:#fff4e0;border-color:rgba(255,214,150,.6);box-shadow:0 10px 30px rgba(0,0,0,.4);backdrop-filter:blur(14px);padding:12px 26px;font-size:15px}
 @media (max-width:480px){h1{font-size:50px}.card{padding:32px 22px 22px}}
 body.rec *{transition:none!important;animation:none!important}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important}}
