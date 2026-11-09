@@ -20,6 +20,20 @@ const TS = () => window.__ts || 1;
 const REC = qs.has('rec');
 if (REC) Math.random = rand(20241108);
 
+// crash recovery: if the last visit never said goodbye (no pagehide) and was alive <20s ago, the tab was killed -> go lighter and resume
+let SAFE = 0, RESUME = 0;
+if (!REC && !qs.has('hq') && !qs.has('nosafe')) {
+  try {
+    const hb = +localStorage.getItem('dw_hb') || 0; SAFE = +localStorage.getItem('dw_safe') || 0;
+    if (hb && Date.now() - hb < 20000) { SAFE = Math.min(2, SAFE + 1); localStorage.setItem('dw_safe', SAFE); RESUME = +localStorage.getItem('dw_ch') || 0; }
+    setInterval(() => { try { localStorage.setItem('dw_hb', Date.now()); } catch (e) { } }, 1500);
+    localStorage.setItem('dw_hb', Date.now());
+    const bye = () => { try { localStorage.removeItem('dw_hb'); } catch (e) { } };
+    addEventListener('pagehide', bye); document.addEventListener('visibilitychange', () => { if (document.hidden) bye(); else { try { localStorage.setItem('dw_hb', Date.now()); } catch (e) { } } });
+  } catch (e) { }
+}
+window.__SAFE = SAFE;
+
 // ------------------------------------------------------------------ renderer
 const canvas = $('#stage');
 function makeContext() {
@@ -40,9 +54,9 @@ export const LOW = !qs.has('hq') && (qs.has('low') || /swiftshader|llvmpipe|soft
 window.__LOW = LOW; window.__GPU = GPU;
 const renderer = new THREE.WebGLRenderer({ canvas, context: gl2, antialias: false });
 const isMobile = matchMedia('(pointer:coarse)').matches || innerWidth < 700;
-let PR = LOW ? 1 : Math.min(devicePixelRatio || 1, isMobile ? 1.5 : 2);
+let PR = LOW ? 1 : Math.min(devicePixelRatio || 1, SAFE >= 2 ? .8 : SAFE ? 1 : isMobile ? 1.25 : 2);
 renderer.setPixelRatio(PR);
-renderer.shadowMap.enabled = !LOW; renderer.shadowMap.type = THREE.PCFShadowMap;
+const NOSH = LOW || SAFE >= 2; renderer.shadowMap.enabled = !NOSH; renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
@@ -50,8 +64,8 @@ scene.fog = new THREE.FogExp2(0x94574d, .0085);
 const camera = new THREE.PerspectiveCamera(50, 1, .1, 1200);
 
 const hemi = new THREE.HemisphereLight(0xffb0c8, 0x6a2a5a, 1.1); scene.add(hemi);
-const dir = new THREE.DirectionalLight(0xffc48a, 2.3); dir.castShadow = !LOW;
-const SM = +(qs.get('sm') || 2048); dir.shadow.mapSize.set(SM, SM); const sc = dir.shadow.camera; sc.left = -16; sc.right = 16; sc.top = 16; sc.bottom = -16; sc.near = 1; sc.far = 60;
+const dir = new THREE.DirectionalLight(0xffc48a, 2.3); dir.castShadow = !NOSH;
+const SM = +(qs.get('sm') || (isMobile || SAFE ? 1024 : 2048)); dir.shadow.mapSize.set(SM, SM); const sc = dir.shadow.camera; sc.left = -16; sc.right = 16; sc.top = 16; sc.bottom = -16; sc.near = 1; sc.far = 60;
 dir.shadow.bias = -.0005; dir.shadow.normalBias = .04; scene.add(dir, dir.target);
 
 // image-based light: a dusk sky + warm street glow baked once, so skin, cloth, brass and wet stone pick up believable reflections
@@ -74,10 +88,10 @@ const lanterns = new Lanterns(scene);
 const sparkLight = new THREE.PointLight(0xffc070, 0, 8, 1.6); scene.add(sparkLight);
 
 let composer;
-try { composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: qs.has('ms') ? +qs.get('ms') : (LOW ? 0 : isMobile ? 2 : 4) })); }
+try { composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: qs.has('ms') ? +qs.get('ms') : (LOW || SAFE || isMobile ? 0 : 4) })); }
 catch (e) { composer = new EffectComposer(renderer); }
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .5, .7, 1.05); if (qs.get('bloom') !== '0' && !LOW) composer.addPass(bloom);
+const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), .5, .7, 1.05); if (qs.get('bloom') !== '0' && !LOW && !SAFE) composer.addPass(bloom);
 composer.addPass(new OutputPass());
 const grade = new ShaderPass({
   uniforms: { tDiffuse: { value: null }, uT: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) } },
@@ -188,7 +202,7 @@ const chapters = [
     caption('Aaj ki shaam, diyon ki roshni aur bas hum dono ✨');
     await wait(2);
     await cta('Light the phuljhadi');
-    try { sessionStorage.setItem('dw_ch', '1'); } catch (e) { }
+    try { sessionStorage.setItem('dw_ch', '1'); localStorage.setItem('dw_ch', '1'); } catch (e) { }
     audio.crackle(6); state.sparkler = true; world.lights.couple.intensity = 7;
     tween(.9, k => couple.setSparkler(k));
     caption('Dekho, kitni pyaari lag rahi hai ye shaam…');
@@ -330,7 +344,7 @@ function showFinal() {
 let running = 0;
 async function run(from = 0) {
   const id = ++running;
-  for (let i = from; i < chapters.length; i++) { if (id !== running) return; progress(i); await chapters[i](); }
+  for (let i = from; i < chapters.length; i++) { if (id !== running) return; progress(i); if (i > 0) { try { localStorage.setItem('dw_ch', i); sessionStorage.setItem('dw_ch', i); } catch (e) { } } await chapters[i](); }
 }
 window.__story = { renderer, run, chapters, state, cam, couple, world, fw, room, camera, tweens };
 
@@ -432,6 +446,9 @@ const hint = t => { const h = document.getElementById('lhint'); if (h) h.firstCh
 async function boot(rec = false) {
   hint('Graphics shuru ho rahe hain…');
   try { await Promise.race([document.fonts.ready, sleep(2500)]); } catch (e) { }
+  // show the greeting card right away (the page is already usable); the 3D street finishes loading behind it
+  const enter = $('#enter'), enterTxt = enter.innerHTML, early = !rec && !RESUME;
+  if (early) { enter.disabled = true; enter.innerHTML = 'Galli saj rahi hai…'; ui.load.classList.add('off'); await sleep(60); }
   hint('Ladka-ladki aa rahe hain…');
   try { await Promise.race([couple.load(), sleep(25000).then(() => { throw new Error('avatar load timeout'); })]); } catch (e) { console.error('avatar load failed', e); window.__avatarErr = String(e && e.stack || e); }
   hint('Galli ki roshni taiyaar ho rahi hai…');
@@ -448,17 +465,23 @@ async function boot(rec = false) {
   await sleep(rec ? 0 : 300);
   ui.load.classList.add('off');
   $('#intro .to-name').textContent = CFG.to;
+  if (SAFE >= 2) couple.setFurVisible?.(false);
+  enter.disabled = false; enter.innerHTML = enterTxt;
+  if (RESUME > 0) { hint('Wapas wahin se shuru…'); begin(RESUME); }
 }
+function begin(r0) { try { audio.start(); } catch (e) { } ui.intro.classList.add('off'); $('#hud').classList.add('on'); cam.follow = null; run(r0); }
+addEventListener('pointerdown', () => { try { audio.ctx && audio.ctx.state !== 'running' && audio.ctx.resume(); } catch (e) { } }, { passive: true });
 $('#enter').addEventListener('click', async () => {
+  if ($('#enter').disabled) return;
+  try { localStorage.removeItem('dw_ch'); sessionStorage.removeItem('dw_ch'); } catch (e) { }
   audio.start();
   ui.intro.classList.add('off'); $('#hud').classList.add('on');
   cam.follow = null;
   await sleep(500);
-  let r0 = 0; try { r0 = +sessionStorage.getItem('dw_ch') || 0; } catch (e) { }
-  run(r0);
+  run(0);
 });
 $('#mute').addEventListener('click', e => { audio.setMuted(!audio.muted); e.currentTarget.classList.toggle('muted', audio.muted); });
-$('#replay').addEventListener('click', () => { try { sessionStorage.removeItem('dw_ch'); } catch (e) { } location.reload(); });
+$('#replay').addEventListener('click', () => { try { sessionStorage.removeItem('dw_ch'); localStorage.removeItem('dw_ch'); } catch (e) { } location.reload(); });
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); const l = ui.load; l.classList.remove('off'); l.style.cssText += ';opacity:1;visibility:visible'; hint('Graphics reset ho gaye… ek second, wapas aa rahe hain'); });
 canvas.addEventListener('webglcontextrestored', () => ui.load.classList.add('off'));
 $('#personalize').addEventListener('click', () => $('#edit').classList.toggle('on'));
