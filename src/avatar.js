@@ -126,7 +126,7 @@ function makeBoy(root) {
 function makeGirl(root) {
   prep(root);
   const rig = new Rig(root); const M = {}; root.traverse(o => { if (o.isMesh) M[o.name] = o; });
-  tintSkin(M.Wolf3D_Head.material, [1, .89, .78]); M.Wolf3D_Body.material = M.Wolf3D_Head.material;
+  tintSkin(M.Wolf3D_Head.material, [1, .88, .76]); M.Wolf3D_Body.material = M.Wolf3D_Head.material;
   const hm = new THREE.MeshStandardMaterial({ color: 0x0f0809, roughness: .42, metalness: .1, normalMap: M.Wolf3D_Hair.material.normalMap, side: THREE.DoubleSide });
   M.Wolf3D_Hair.material = hm;
   M.Wolf3D_Outfit_Bottom.visible = false; M.Wolf3D_Outfit_Footwear.visible = false;

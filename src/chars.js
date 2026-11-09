@@ -367,20 +367,6 @@ function decorateGirl(G) {
   for (const sx of [-1, 1]) for (let j = 0; j < 5; j++) {
     lock(new THREE.Vector3(c.x + sx * (R * 1.02 + j * .004), topY - .015 - j * .012, c.z + R * (.05 - j * .05)), new THREE.Vector3(sx * (.075 + j * .012), 0, .055 + j * .012), .36 + j * .035, .026 - j * .002, 1.6 + j * .25, .007, j * 1.7 + (sx > 0 ? 0 : 2)); }
   G.braid = hg;
-  // oversized thin-frame glasses
-  { const eyes = []; root.traverse(o => { if (o.name === 'EyeLeft' || o.name === 'EyeRight') eyes.push(new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3())); });
-    if (eyes.length === 2) {
-      const d = Math.abs(eyes[0].x - eyes[1].x), ey = (eyes[0].y + eyes[1].y) / 2, w = d * .92, h = d * .8;
-      const fz = Math.max(hit(new THREE.Vector3(eyes[0].x, eyes[0].y, c.z + 1), new THREE.Vector3(0, 0, -1))?.point.z ?? 0, hit(new THREE.Vector3(eyes[1].x, eyes[1].y, c.z + 1), new THREE.Vector3(0, 0, -1))?.point.z ?? 0, hit(new THREE.Vector3(c.x, ey, c.z + 1), new THREE.Vector3(0, 0, -1))?.point.z ?? 0);
-      const gl = new THREE.Group(), fm = new THREE.MeshStandardMaterial({ color: 0xe6c8a2, metalness: 1, roughness: .22, envMapIntensity: 1.6 }), lm = new THREE.MeshPhysicalMaterial({ color: 0xdfe8f0, roughness: .05, metalness: 0, transparent: true, opacity: .16, envMapIntensity: 1.4, side: THREE.DoubleSide, depthWrite: false });
-      const outline = (cx0) => { const pts = []; for (let i = 0; i < 56; i++) { const a = i / 56 * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a), e = 2 / 3.4; pts.push(new THREE.Vector3(cx0 + w / 2 * Math.sign(ca) * Math.pow(Math.abs(ca), e) * (ca > 0 ? .98 : 1), h / 2 * Math.sign(sa) * Math.pow(Math.abs(sa), e) - (sa < 0 ? h * .02 : 0), 0)); } return pts; };
-      for (const sx of [-1, 1]) { const pts = outline(sx * d / 2), cur = new THREE.CatmullRomCurve3(pts, true); gl.add(new THREE.Mesh(new THREE.TubeGeometry(cur, 80, .0016, 6, true), fm));
-        const sh = new THREE.Shape(pts.map(v => new THREE.Vector2(v.x, v.y))); gl.add(new THREE.Mesh(new THREE.ShapeGeometry(sh, 8), lm));
-        const t = new THREE.CatmullRomCurve3([new THREE.Vector3(sx * (d / 2 + w / 2), h * .28, 0), new THREE.Vector3(sx * (d / 2 + w / 2 + .004), h * .28, -.04), new THREE.Vector3(sx * (R * 1.04), h * .25, -.11), new THREE.Vector3(sx * (R * 1.03), h * .1, -.15)]); gl.add(new THREE.Mesh(new THREE.TubeGeometry(t, 14, .0016, 5, false), fm)); }
-      gl.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(-d / 2 + w / 2, h * .2, 0), new THREE.Vector3(0, h * .3, .006), new THREE.Vector3(d / 2 - w / 2, h * .2, 0)]), 10, .0017, 5, false), fm));
-      gl.traverse(o => { o.castShadow = false; o.frustumCulled = false; });
-      attach(head, gl, new THREE.Vector3(c.x, ey - .002, fz + .016), new THREE.Quaternion());
-    } }
   // dupatta sash: left shoulder -> across the chest -> right hip
   { const tm = topMesh(G), g0 = G.group.getWorldPosition(new THREE.Vector3()), cx = g0.x; tm.updateWorldMatrix(true, false);
     const sh = rig.pos('LeftArm', new THREE.Vector3()), y0 = sh.y + .02;

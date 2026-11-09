@@ -187,7 +187,7 @@ async function fadeIn(ms = 900) { setFade(0); await wait(ms / 1000); }
 const state = { night: 0, sparkler: false, focus: V(0, 0, 0), inRoom: false };
 const barsTo = (b, d = 1.5) => { const b0 = cam.bars; return tween(d, k => cam.bars = lerp(b0, b, k), ease.sine); };
 const nightTo = (n, d = 5) => { const n0 = state.night; return tween(d, k => state.night = lerp(n0, n, k), ease.sine); };
-const letterText = () => (CFG.message || `Meri ${CFG.to},\n\nDiyon ki roshni se zyada tumhari muskaan meri zindagi roshan karti hai. Tum ho toh har din Diwali jaisa lagta hai.\n\nIs Diwali pe bas ek hi wish hai: tum hamesha mere saath rehna.\n\nHappy Diwali ♥`);
+const letterText = () => (CFG.message || `Meri ${CFG.from},\n\nDiyon ki roshni se zyada tumhari muskaan meri zindagi roshan karti hai. Tum ho toh har din Diwali jaisa lagta hai.\n\nIs Diwali pe bas ek hi wish hai: tum hamesha mere saath rehna.\n\nHappy Diwali ♥`);
 
 // couple movement along the street
 async function walkTo(p, dur, finalRot) {
@@ -233,15 +233,18 @@ const chapters = [
   },
   async function fireworks() {
     hideCaption();
-    const pitch = THREE.MathUtils.degToRad(camera.aspect > 1.1 ? 50 : 56), cp = V(0, 1.5, 7.6);
-    const f = V(0, Math.sin(pitch), -Math.cos(pitch)), r = V(1, 0, 0), u = V(0, Math.cos(pitch), Math.sin(pitch));
-    const P = (d, dx = 0, dy = 0) => cp.clone().addScaledVector(f, d).addScaledVector(r, dx).addScaledVector(u, dy);
-    const D = 62;
-    await Promise.all([turnTo(Math.PI, 1.5), camTo(cp, P(120), 3.6, ease.inOut, { bars: 0, arc: 0, lift: 0, dutch: 0, push: 0 }), nightTo(.55, 5), tween(2.4, k => world.setOverhead(1 - k), t => t)]);
+    // camera stands just behind the couple (we see both of them from behind, watching the sky);
+    // when "Happy Diwali" is written it tilts up to the sky slit, then comes back down to them
+    const cp = V(0, 1.25, 4.5), port = camera.aspect <= 1.1;
+    const mk = deg => { const pitch = THREE.MathUtils.degToRad(deg), f = V(0, Math.sin(pitch), -Math.cos(pitch)), r = V(1, 0, 0), u = V(0, Math.cos(pitch), Math.sin(pitch));
+      return (d, dx = 0, dy = 0) => cp.clone().addScaledVector(f, d).addScaledVector(r, dx).addScaledVector(u, dy); };
+    const P0 = mk(port ? 21 : 17), P1 = mk(port ? 56 : 50); let P = P0;
+    const D = 62, still = { bars: 0, arc: 0, lift: 0, dutch: 0, push: 0 };
+    await Promise.all([turnTo(Math.PI, 1.5), camTo(cp, P0(120), 3.6, ease.inOut, still), nightTo(.55, 5), tween(2.4, k => world.setOverhead(1 - k), t => t)]);
     caption('Aasmaan bhi aaj humare liye jagmaga raha hai…');
     const a = camera.aspect, hf = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * a);
     const w = Math.min(38, 2 * D * Math.tan(hf / 2) * .86);
-    await fw.writeText(['Happy Diwali', CFG.from], P(D, 0, 1), w);
+    await fw.writeText(['Happy Diwali', CFG.from], P1(D, 0, 1), w);
     await cta('Launch the fireworks');
     hideCaption();
     const C = [[0xff3d7f, 0xffb300], [0xffb300, 0xff6b35], [0x39d0ff, 0x8a7bff], [0xffffff, 0xffd27a], [0x5cff9d, 0xffe14d], [0xff5ad1, 0xfff0a0]];
@@ -252,7 +255,9 @@ const chapters = [
     shot(0, -12, 8, 0); shot(.9, 12, 12, 2); shot(1.8, 0, 16, 1, 1);
     shot(3.1, -16, 14, 4, 2, .45); shot(3.5, 15, 6, 5); shot(4.4, -8, 3, 3, 0, .45); shot(4.8, 9, 14, 0, 1);
     shot(5.9, 0, 6, 2, 0, .55); shot(6.2, -18, 10, 1, 2); shot(6.5, 18, 12, 3, 2);
-    fw.schedule(7.6, () => fw.showText());
+    fw.schedule(6.9, () => { P = P1; camTo(cp, P1(120), 2.4, ease.inOut, still); });
+    fw.schedule(7.9, () => fw.showText());
+    fw.schedule(15.4, () => { P = P0; camTo(cp, P0(120), 2.6, ease.inOut, still); });
     shot(9, -19, 18, 5, 0, .4, D + 30); shot(9.6, 19, 18, 0, 1, .4, D + 30); shot(11.5, -20, 4, 2, 2, .4, D + 30); shot(12, 20, 5, 4, 0, .4, D + 30);
     shot(14.3, 0, 22, 3, 0, .6, D + 20); shot(14.8, -14, 14, 0, 1); shot(15.2, 14, 14, 1, 1); shot(15.6, 0, 10, 5, 2, .6);
     caption('Humari Diwali, humari kahani ♥');
@@ -352,16 +357,16 @@ const chapters = [
 function showLetter() {
   return new Promise(res => {
     $('#letter .to').textContent = '';
-    $('#letter .for').textContent = CFG.to;
+    $('#letter .for').textContent = CFG.from;
     $('#letter .body').textContent = letterText();
-    $('#letter .from').textContent = `— ${CFG.from}`;
+    $('#letter .from').textContent = `— ${CFG.to}`;
     ui.letter.classList.add('on');
     const b = $('#letter button'); const h = () => { b.removeEventListener('click', h); ui.letter.classList.remove('on'); after(.5, res); }; b.addEventListener('click', h);
     if (qs.has('auto')) after(REC ? 7 : 1.5, () => b.click());
   });
 }
 function showFinal() {
-  $('#final .names').textContent = `${CFG.to} ♥ ${CFG.from}`; ui.final.classList.add('on');
+  $('#final .names').textContent = `${CFG.from} ♥ ${CFG.to}`; ui.final.classList.add('on');
 }
 
 let running = 0;
@@ -497,7 +502,7 @@ async function boot(rec = false) {
   if (!rec) frame();
   await sleep(rec ? 0 : 300);
   ui.load.classList.add('off');
-  $('#intro .to-name').textContent = CFG.to;
+  $('#intro .to-name').textContent = CFG.from;
   if (SAFE >= 2) couple.setFurVisible?.(false);
   enter.disabled = false; enter.innerHTML = enterTxt;
   if (RESUME > 0) { hint('Wapas wahin se shuru…'); if (RESUME === .5) { skipCta = true; begin(0); } else begin(RESUME); }
@@ -521,6 +526,6 @@ $('#replay').addEventListener('click', () => { try { sessionStorage.removeItem('
 canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); const l = ui.load; l.classList.remove('off'); l.style.cssText += ';opacity:1;visibility:visible'; hint('Graphics reset ho gaye… ek second, wapas aa rahe hain'); });
 canvas.addEventListener('webglcontextrestored', () => ui.load.classList.add('off'));
 $('#personalize').addEventListener('click', () => $('#edit').classList.toggle('on'));
-$('#edit').addEventListener('input', () => { CFG.to = $('#in-to').value.trim() || CFG.to; CFG.from = $('#in-from').value.trim() || CFG.from; CFG.message = $('#in-msg').value.trim(); $('#intro .to-name').textContent = CFG.to; });
+$('#edit').addEventListener('input', () => { CFG.to = $('#in-to').value.trim() || CFG.to; CFG.from = $('#in-from').value.trim() || CFG.from; CFG.message = $('#in-msg').value.trim(); $('#intro .to-name').textContent = CFG.from; });
 $('#in-to').value = CFG.to; $('#in-from').value = CFG.from; $('#in-msg').value = CFG.message || '';
 if (!REC) boot();
