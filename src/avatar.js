@@ -49,28 +49,33 @@ function plainCloth(mesh, color, { rough = .8, sheen = 0, metal = 0, keepMap = f
 
 const GOLD = () => new THREE.MeshStandardMaterial({ color: 0xf0b445, metalness: 1, roughness: .28, envMapIntensity: 1.4 });
 
+// scalp hair: a thin shell over the cranium with a soft (dithered) hairline, short sides that stop above the ear and a low nape.
+// The swept-up quiff itself is built from individual locks in chars.js (decorateBoy).
 function hairShell(headMesh, eyeMesh, mat) {
   headMesh.updateWorldMatrix(true, false); eyeMesh.updateWorldMatrix(true, false);
   const geo = headMesh.geometry, pos = geo.attributes.position, nor = geo.attributes.normal, idx = geo.index.array;
   geo.computeBoundingBox(); const bb = geo.boundingBox, cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2, R = (bb.max.x - bb.min.x) / 2;
   const eb = new THREE.Box3().setFromObject(eyeMesh), ew = eb.getCenter(new THREE.Vector3()); const el = headMesh.worldToLocal(ew.clone());
   const eyeY = el.y, hz = (bb.max.z - bb.min.z) / 2;
-  const thr = (x, y, z) => { const f = (z - cz) / hz, w = THREE.MathUtils.clamp((1 - f) / 2, 0, 1), sx = Math.abs(x - cx) / R; return eyeY + R * .62 - R * 1.0 * w * w * w - R * .22 * sx * sx; };
-  const keep = []; const n = pos.count; const ex = new Float32Array(n);
-  for (let i = 0; i < n; i++) { const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i); ex[i] = THREE.MathUtils.smoothstep(y - thr(x, y, z), -.004, .018); }
-  const used = new Map(), map = new Int32Array(n).fill(-1); const outIdx = [];
+  const KEY = [[0, .72], [.2, .5], [.34, .3], [.5, .2], [.68, .02], [1, -.42]];
+  const kf = t => { for (let i = 1; i < KEY.length; i++) if (t <= KEY[i][0]) { const [t0, v0] = KEY[i - 1], [t1, v1] = KEY[i], u = (t - t0) / (t1 - t0); return v0 + (v1 - v0) * u * u * (3 - 2 * u); } return KEY[KEY.length - 1][1]; };
+  const thr = (x, y, z) => { const t = THREE.MathUtils.clamp((1 - (z - cz) / hz) / 2, 0, 1), sx = Math.abs(x - cx) / R; return eyeY + R * (kf(t) - (t < .3 ? .22 * sx * sx * (1 - t / .3) : 0)); };
+  const n = pos.count, ex = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i); ex[i] = THREE.MathUtils.smoothstep(y - thr(x, y, z), -.002, .03); }
+  const outIdx = [];
   for (let t = 0; t < idx.length; t += 3) { const a = idx[t], b = idx[t + 1], c = idx[t + 2]; if (ex[a] > 0 || ex[b] > 0 || ex[c] > 0) outIdx.push(a, b, c); }
   const g = new THREE.BufferGeometry();
-  const P = new Float32Array(n * 3), N = new Float32Array(n * 3);
+  const P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 4);
   for (let i = 0; i < n; i++) {
-    const top = THREE.MathUtils.smoothstep(pos.getY(i), eyeY, bb.max.y);
-    const th = (.0025 + ex[i] * (.0065 + top * .012));
-    P[i * 3] = pos.getX(i) + nor.getX(i) * th; P[i * 3 + 1] = pos.getY(i) + nor.getY(i) * th + ex[i] * top * .004; P[i * 3 + 2] = pos.getZ(i) + nor.getZ(i) * th;
+    const top = THREE.MathUtils.smoothstep(pos.getY(i), eyeY, bb.max.y), x = pos.getX(i), z = pos.getZ(i);
+    const th = .0035 + ex[i] * (.005 + top * .008) + Math.sin(x * 160 + z * 90) * .0012 * ex[i];
+    P[i * 3] = x + nor.getX(i) * th; P[i * 3 + 1] = pos.getY(i) + nor.getY(i) * th; P[i * 3 + 2] = z + nor.getZ(i) * th;
     N[i * 3] = nor.getX(i); N[i * 3 + 1] = nor.getY(i); N[i * 3 + 2] = nor.getZ(i);
+    C[i * 4] = C[i * 4 + 1] = C[i * 4 + 2] = 1; C[i * 4 + 3] = Math.min(1, ex[i] * 1.25);
   }
-  g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(N, 3)); g.setAttribute('uv', geo.attributes.uv);
+  g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.BufferAttribute(N, 3)); g.setAttribute('uv', geo.attributes.uv); g.setAttribute('color', new THREE.BufferAttribute(C, 4));
   g.setAttribute('skinIndex', geo.attributes.skinIndex); g.setAttribute('skinWeight', geo.attributes.skinWeight); g.setIndex(outIdx);
-  // strand look: fine procedural bump along the head
+  mat.vertexColors = true; mat.alphaHash = true; mat.needsUpdate = true;
   const m = new THREE.SkinnedMesh(g, mat); m.bind(headMesh.skeleton, headMesh.bindMatrix); m.position.copy(headMesh.position); m.quaternion.copy(headMesh.quaternion); m.scale.copy(headMesh.scale);
   m.castShadow = true; m.frustumCulled = false; headMesh.parent.add(m); return m;
 }
@@ -105,11 +110,11 @@ function makeBoy(root) {
   prep(root);
   const rig = new Rig(root); const M = {}; root.traverse(o => { if (o.isMesh) M[o.name] = o; });
   if (M.Wolf3D_Headwear) M.Wolf3D_Headwear.visible = false; if (M.Wolf3D_Beard) M.Wolf3D_Beard.visible = false;
-  tintSkin(M.Wolf3D_Head.material, [.97, .82, .68]); M.Wolf3D_Body.material = M.Wolf3D_Head.material;
+  tintSkin(M.Wolf3D_Head.material, [.96, .81, .68]); M.Wolf3D_Body.material = M.Wolf3D_Head.material;
   plainCloth(M.Wolf3D_Outfit_Top, 0xf1e2c4, { rough: .72, sheen: .6 });
   plainCloth(M.Wolf3D_Outfit_Bottom, 0xeadcc0, { rough: .78, sheen: .5 });
   M.Wolf3D_Outfit_Footwear.material = new THREE.MeshStandardMaterial({ color: 0x5a3018, roughness: .5, metalness: .1 });
-  const hairMat = new THREE.MeshStandardMaterial({ color: 0x15100d, roughness: .5, metalness: .05, bumpMap: hairTex(), bumpScale: 1.5 });
+  const hairMat = new THREE.MeshPhysicalMaterial({ color: 0x120d0b, roughness: .42, metalness: .05, sheen: 1, sheenRoughness: .35, sheenColor: new THREE.Color(0x8e94b0), bumpMap: hairTex(), bumpScale: 2.2 });
   hairShell(M.Wolf3D_Head, M.EyeLeft, hairMat);
   const g = new THREE.Group(); g.add(root);
   const anchor = new THREE.Object3D(); g.add(anchor);
@@ -121,7 +126,7 @@ function makeBoy(root) {
 function makeGirl(root) {
   prep(root);
   const rig = new Rig(root); const M = {}; root.traverse(o => { if (o.isMesh) M[o.name] = o; });
-  tintSkin(M.Wolf3D_Head.material, [1, .88, .76]); M.Wolf3D_Body.material = M.Wolf3D_Head.material;
+  tintSkin(M.Wolf3D_Head.material, [1, .89, .78]); M.Wolf3D_Body.material = M.Wolf3D_Head.material;
   const hm = new THREE.MeshStandardMaterial({ color: 0x0f0809, roughness: .42, metalness: .1, normalMap: M.Wolf3D_Hair.material.normalMap, side: THREE.DoubleSide });
   M.Wolf3D_Hair.material = hm;
   M.Wolf3D_Outfit_Bottom.visible = false; M.Wolf3D_Outfit_Footwear.visible = false;

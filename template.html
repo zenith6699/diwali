@@ -72,7 +72,9 @@ h1{font:italic 700 58px/1.02 'Cormorant Garamond',Georgia,serif;margin:0 0 12px;
 #letter.on .paper{transform:none}
 .paper:before{content:"";position:absolute;inset:9px;border:1.5px solid rgba(200,130,50,.5);border-radius:3px 16px 3px 16px;pointer-events:none}
 .paper .body{font:400 21px/1.62 'Kalam','Segoe Print',cursive;white-space:pre-line;margin:0 0 14px}
-.paper .from{font:700 22px 'Kalam',cursive;text-align:right;color:#a3281f;margin:0 0 20px}
+.paper .from{font:700 22px 'Kalam',cursive;text-align:right;color:#a3281f;margin:0 0 10px}
+.paper .for{font:700 30px/1.2 'Kalam',cursive;text-align:center;color:#a3281f;margin:6px 0 22px}
+.paper .for:before,.paper .for:after{content:'♥';font-size:.55em;margin:0 .6em;vertical-align:.18em;opacity:.8}
 .paper .btn{display:flex;margin:0 auto;padding:12px 28px;font-size:16px}
 .mari{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:30px;filter:drop-shadow(0 4px 6px rgba(0,0,0,.3))}
 
@@ -121,7 +123,7 @@ body.rec *{transition:none!important;animation:none!important}
 
 <div id="fade"></div>
 
-<div id="letter"><div class="paper"><div class="mari">🪔</div><div class="to"></div><div class="body"></div><div class="from"></div><button class="btn">Dil se shukriya ♥</button></div></div>
+<div id="letter"><div class="paper"><div class="mari">🪔</div><div class="to"></div><div class="body"></div><div class="from"></div><div class="for"></div><button class="btn">Dil se shukriya ♥</button></div></div>
 
 <div id="final"><div><p class="hi">शुभ दीपावली</p><h2>Happy Diwali</h2><div class="names"></div></div><button class="btn" id="replay">↺ &nbsp;Phir se dekho</button></div>
 

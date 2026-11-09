@@ -235,13 +235,15 @@ export class Fireworks {
     g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
     try { await document.fonts.load('italic 700 150px "Cormorant Garamond"'); } catch (e) { /* offline */ }
     g.font = 'italic 700 170px "Cormorant Garamond", Georgia, serif'; g.fillText(lines[0], W / 2, 130);
-    // line 2: name ♥ name (heart drawn by hand)
-    g.font = 'italic 700 118px "Cormorant Garamond", Georgia, serif';
-    const a = lines[1], b = lines[2], wa = g.measureText(a).width, wb = g.measureText(b).width, hw = 90, gap = 34;
-    const total = wa + wb + hw + gap * 2; let x = W / 2 - total / 2;
-    g.textAlign = 'left'; g.fillText(a, x, 330); x += wa + gap;
-    g.save(); g.translate(x + hw / 2, 335); g.scale(hw / 60, hw / 60); g.beginPath(); g.moveTo(0, 22); g.bezierCurveTo(-42, -8, -20, -38, 0, -14); g.bezierCurveTo(20, -38, 42, -8, 0, 22); g.fill(); g.restore();
-    x += hw + gap; g.fillText(b, x, 330);
+    // line 2: his name, a small heart on each side (hearts drawn by hand)
+    let fs = 128; g.font = `italic 700 ${fs}px "Cormorant Garamond", Georgia, serif`;
+    const nm = String(lines[1] || '').trim(); let wn = g.measureText(nm).width;
+    while (wn > 880 && fs > 56) { fs -= 6; g.font = `italic 700 ${fs}px "Cormorant Garamond", Georgia, serif`; wn = g.measureText(nm).width; }
+    const hw = 74, gap = 36, hy = 338;
+    g.textAlign = 'center'; g.fillText(nm, W / 2, hy);
+    for (const sx of [-1, 1]) {
+      g.save(); g.translate(W / 2 + sx * (wn / 2 + gap + hw / 2), hy + 6); g.scale(hw / 60, hw / 60); g.beginPath(); g.moveTo(0, 22); g.bezierCurveTo(-42, -8, -20, -38, 0, -14); g.bezierCurveTo(20, -38, 42, -8, 0, 22); g.fill(); g.restore();
+    }
     const d = g.getImageData(0, 0, W, H).data, pts = [], R = rand(12);
     for (let y = 0; y < H; y += 4) for (let xx = 0; xx < W; xx += 4) if (d[(y * W + xx) * 4 + 3] > 128 && R() < .95) pts.push([xx / W - .5, .5 - y / H]);
     const N = pts.length, tgt = new Float32Array(N * 3), org = new Float32Array(N * 3), rnd = new Float32Array(N * 4);

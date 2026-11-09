@@ -233,15 +233,15 @@ const chapters = [
   },
   async function fireworks() {
     hideCaption();
-    const pitch = THREE.MathUtils.degToRad(camera.aspect > 1.1 ? 17 : 30), cp = V(0, 1.5, 7.6);
+    const pitch = THREE.MathUtils.degToRad(camera.aspect > 1.1 ? 50 : 56), cp = V(0, 1.5, 7.6);
     const f = V(0, Math.sin(pitch), -Math.cos(pitch)), r = V(1, 0, 0), u = V(0, Math.cos(pitch), Math.sin(pitch));
     const P = (d, dx = 0, dy = 0) => cp.clone().addScaledVector(f, d).addScaledVector(r, dx).addScaledVector(u, dy);
-    const D = 70;
+    const D = 62;
     await Promise.all([turnTo(Math.PI, 1.5), camTo(cp, P(120), 3.6, ease.inOut, { bars: 0, arc: 0, lift: 0, dutch: 0, push: 0 }), nightTo(.55, 5), tween(2.4, k => world.setOverhead(1 - k), t => t)]);
     caption('Aasmaan bhi aaj humare liye jagmaga raha hai…');
     const a = camera.aspect, hf = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * a);
-    const w = clamp(2 * D * Math.tan(hf / 2) * .8, 30, 80);
-    await fw.writeText(['Happy Diwali', CFG.to, CFG.from], P(D, 0, 1), w);
+    const w = Math.min(38, 2 * D * Math.tan(hf / 2) * .86);
+    await fw.writeText(['Happy Diwali', CFG.from], P(D, 0, 1), w);
     await cta('Launch the fireworks');
     hideCaption();
     const C = [[0xff3d7f, 0xffb300], [0xffb300, 0xff6b35], [0x39d0ff, 0x8a7bff], [0xffffff, 0xffd27a], [0x5cff9d, 0xffe14d], [0xff5ad1, 0xfff0a0]];
@@ -352,6 +352,7 @@ const chapters = [
 function showLetter() {
   return new Promise(res => {
     $('#letter .to').textContent = '';
+    $('#letter .for').textContent = CFG.to;
     $('#letter .body').textContent = letterText();
     $('#letter .from').textContent = `— ${CFG.from}`;
     ui.letter.classList.add('on');

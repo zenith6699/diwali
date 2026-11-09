@@ -6,6 +6,18 @@ import { flameMaterial, flameUni } from './fx.js';
 const UP = new THREE.Vector3(0, 1, 0), ONE = new THREE.Vector3(1, 1, 1);
 export const SH = 5; // street half width
 
+// soft round glow that lights the air / ground around a lit diya (billboard, additive)
+function haloMaterial() {
+  return new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, uniforms: flameUni,
+    vertexShader: `varying vec2 vUv; void main(){ vUv=uv; mat4 im=instanceMatrix; vec3 c=im[3].xyz; float sx=length(im[0].xyz);
+      vec3 right=vec3(viewMatrix[0][0],viewMatrix[1][0],viewMatrix[2][0]); vec3 up=vec3(viewMatrix[0][1],viewMatrix[1][1],viewMatrix[2][1]);
+      vec3 wp=(modelMatrix*vec4(c,1.)).xyz+(right*position.x+up*position.y)*sx; gl_Position=projectionMatrix*viewMatrix*vec4(wp,1.); }`,
+    fragmentShader: `varying vec2 vUv; uniform float uT; void main(){ float r=length(vUv-.5)*2.; float a=pow(clamp(1.-r,0.,1.),2.6)*(.34+.04*sin(uT*11.+r*3.));
+      gl_FragColor=vec4(vec3(1.7,.75,.22)*a,a); }`,
+  });
+}
+// a proper clay diya: turned terracotta bowl with a thick rim, oil, a wick and a small flame
 class Diyas {
   constructor() { this.items = []; }
   add(x, y, z, s = 1, lit = true) {
@@ -15,16 +27,21 @@ class Diyas {
   light(id, on = true) { this.items[id].target = on ? 1 : 0; }
   finalize(parent) {
     const n = this.items.length;
-    const bowlGeo = new THREE.SphereGeometry(.14, 14, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
-    bowlGeo.scale(1, .8, 1);
-    this.bowls = new THREE.InstancedMesh(bowlGeo, new THREE.MeshStandardMaterial({ color: 0xc8582b, roughness: .8, side: THREE.DoubleSide }), n);
-    const fg = new THREE.SphereGeometry(.055, 10, 10);
+    const prof = [[0, 0], [.04, 0], [.05, .006], [.072, .018], [.09, .038], [.1, .06], [.098, .07], [.09, .072], [.086, .066], [.078, .05], [.06, .038], [.03, .034], [0, .033]].map(([r, y]) => new THREE.Vector2(r, y));
+    const bowlGeo = new THREE.LatheGeometry(prof, 22); bowlGeo.computeVertexNormals();
+    const clay = new THREE.MeshStandardMaterial({ color: 0xb4532a, roughness: .78, metalness: 0, side: THREE.DoubleSide, emissive: 0x2a0c04, emissiveIntensity: .35 });
+    this.bowls = new THREE.InstancedMesh(bowlGeo, clay, n);
+    const oilGeo = new THREE.CircleGeometry(.07, 18); oilGeo.rotateX(-Math.PI / 2);
+    this.oil = new THREE.InstancedMesh(oilGeo, new THREE.MeshBasicMaterial({ color: new THREE.Color(1.9, .95, .32), toneMapped: false }), n); this.oil.renderOrder = 2;
+    const wickGeo = new THREE.CylinderGeometry(.006, .009, .045, 6); wickGeo.translate(0, .05, 0);
+    this.wicks = new THREE.InstancedMesh(wickGeo, new THREE.MeshStandardMaterial({ color: 0x2b1a10, roughness: 1 }), n);
     this.flames = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), flameMaterial(), n); this.flames.renderOrder = 5;
-    this.bowls.frustumCulled = this.flames.frustumCulled = false;
+    this.halos = new THREE.InstancedMesh(new THREE.PlaneGeometry(2, 2), haloMaterial(), n); this.halos.renderOrder = 4;
+    for (const m of [this.bowls, this.oil, this.wicks, this.flames, this.halos]) m.frustumCulled = false;
     this.m = new THREE.Matrix4();
-    this.items.forEach((it, i) => { this.m.makeScale(it.s, it.s, it.s).setPosition(it.x, it.y + .02 * it.s, it.z); this.bowls.setMatrixAt(i, this.m); });
+    this.items.forEach((it, i) => { this.m.makeScale(it.s, it.s, it.s).setPosition(it.x, it.y, it.z); this.bowls.setMatrixAt(i, this.m); this.wicks.setMatrixAt(i, this.m); });
     this.bowls.castShadow = false;
-    parent.add(this.bowls, this.flames);
+    parent.add(this.bowls, this.oil, this.wicks, this.halos, this.flames);
   }
   update(t, dt) {
     const m = this.m, k = Math.min(1, dt * 2.5); flameUni.uT.value = t;
@@ -32,10 +49,11 @@ class Diyas {
       it.cur += (it.target - it.cur) * k;
       const f = 1 + .16 * Math.sin(t * 13 + it.ph) + .1 * Math.sin(t * 23 + it.ph * 2);
       const sc = it.s * Math.max(0.0001, it.cur);
-      m.makeScale(sc * .17, sc * .36 * f, 1).setPosition(it.x, it.y + .105 * it.s, it.z);
-      this.flames.setMatrixAt(i, m);
+      m.makeScale(sc * .052, sc * .125 * f, 1).setPosition(it.x, it.y + .08 * it.s, it.z); this.flames.setMatrixAt(i, m);
+      m.makeScale(it.s * Math.max(0.0001, it.cur), it.s * Math.max(0.0001, it.cur), it.s * Math.max(0.0001, it.cur)).setPosition(it.x, it.y + .0006, it.z); this.oil.setMatrixAt(i, m);
+      m.makeScale(sc * .62, sc * .62, 1).setPosition(it.x, it.y + .13 * it.s, it.z); this.halos.setMatrixAt(i, m);
     });
-    this.flames.instanceMatrix.needsUpdate = true;
+    this.flames.instanceMatrix.needsUpdate = true; this.oil.instanceMatrix.needsUpdate = true; this.halos.instanceMatrix.needsUpdate = true;
   }
 }
 
@@ -157,10 +175,10 @@ export function buildWorld(scene) {
       // toran
       for (let i = -9; i <= 9; i++) { const L = 3 + (i % 2 ? 1 : 2) + (9 - Math.abs(i)) % 3; for (let j = 0; j < L; j++) marigold.add(...W(i * .15, 4.3 - j * .15, d / 2 + .38).toArray(), .09, mc(i + j)); }
       const doorW = W(0, 0, d / 2 + .2);
-      world.door = { pos: W(0, 1.5, d / 2 + .3), out: W(0, 1.2, d / 2 + 4), ledge: [W(-1.2, .98, d / 2 + .62), W(1.2, .98, d / 2 + .62)], normal: W(0, 0, 1).sub(new THREE.Vector3(o.px, 0, o.pz)).normalize() };
+      world.door = { pos: W(0, 1.5, d / 2 + .3), out: W(0, 1.2, d / 2 + 4), ledge: [W(-1.2, 1.012, d / 2 + .62), W(1.2, 1.012, d / 2 + .62)], normal: W(0, 0, 1).sub(new THREE.Vector3(o.px, 0, o.pz)).normalize() };
       // diyas on ledge (unlit)
-      world.door.diyaIds = [diyas.add(...world.door.ledge[0].toArray(), 1.3, false), diyas.add(...world.door.ledge[1].toArray(), 1.3, false)];
-      for (let k = -2; k <= 2; k++) if (k) world.door.diyaIds.push(diyas.add(...W(k * .75 + (k > 0 ? 1 : -1) * .1, .98, d / 2 + .62).toArray(), 1.1, false));
+      world.door.diyaIds = [diyas.add(...world.door.ledge[0].toArray(), 1.15, false), diyas.add(...world.door.ledge[1].toArray(), 1.15, false)];
+      for (let k = -2; k <= 2; k++) if (k) world.door.diyaIds.push(diyas.add(...W(k * .75 + (k > 0 ? 1 : -1) * .1, 1.012, d / 2 + .62).toArray(), .95, false));
     } else {
       add(GB, mat.trim, doorX, 1.4, d / 2 + .06, 1.9, 2.8, .14);
       add(GHalf, mat.trim, doorX, 2.8, d / 2 + .06, .95, .95, 1);

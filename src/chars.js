@@ -142,30 +142,48 @@ function furPart(rx, ry, rz, pos, rot, mat, innerCol, castInner = true) {
 }
 export function makeBunny() {
   const g = new THREE.Group(), b = new THREE.Group(); g.add(b);
-  const fur = furMat(0xa09283, 0xf1e8dc, .019, 640), furW = furMat(0xb9ab9c, 0xfffaf2, .026, 560);
-  const IN = 0xb3a595;
-  b.add(furPart(.115, .105, .19, [0, .125, 0], null, fur, IN));
+  // agouti (wild-brown) coat with a pale belly / muzzle / scut and dark-tipped ears, like a real pet rabbit
+  const fur = furMat(0x4f3d2e, 0xb99b75, .03, 900), furW = furMat(0x9a8c7a, 0xf3ede3, .03, 820), furD = furMat(0x2a211a, 0x6e5741, .022, 900);
+  const IN = 0x6b5743, INW = 0xcfc3b2, IND = 0x3a2e24;
+  b.add(furPart(.1, .098, .165, [0, .125, .005], null, fur, IN));          // torso
+  b.add(furPart(.112, .112, .125, [0, .135, -.075], null, fur, IN));       // rounded rump
+  b.add(furPart(.075, .082, .09, [0, .108, .105], null, fur, IN));         // chest
+  b.add(furPart(.07, .045, .13, [0, .052, .02], null, furW, INW, false));  // pale belly
   for (const sx of [-1, 1]) {
-    b.add(furPart(.07, .09, .11, [sx * .085, .1, -.075], [0, 0, 0], fur, IN));
-    b.add(furPart(.026, .05, .026, [sx * .05, .045, .12], [.15, 0, 0], fur, IN, false));
-    b.add(furPart(.032, .018, .075, [sx * .08, .02, -.06], null, fur, IN, false));
+    b.add(furPart(.058, .088, .112, [sx * .088, .105, -.07], [0, 0, 0], fur, IN));            // thigh
+    b.add(furPart(.026, .02, .09, [sx * .082, .024, -.03], [0, sx * .05, 0], fur, IN, false)); // long hind foot
+    b.add(furPart(.022, .066, .024, [sx * .04, .068, .135], [.12, 0, 0], fur, IN, false));     // foreleg
+    b.add(furPart(.022, .014, .036, [sx * .04, .02, .168], null, furW, INW, false));           // paw
   }
-  b.add(furPart(.045, .045, .045, [0, .13, -.205], null, furW, 0xe0d6ca));
-  const head = new THREE.Group(); head.position.set(0, .2, .16); b.add(head);
-  head.add(furPart(.075, .072, .098, [0, .015, .03], null, fur, IN));
-  head.add(furPart(.06, .045, .05, [0, -.012, .098], null, furW, 0xd2c6b8, false));
-  const pink = new THREE.MeshStandardMaterial({ color: 0xd9908f, roughness: .6, side: THREE.DoubleSide });
+  b.add(furPart(.05, .05, .048, [0, .165, -.195], null, furW, INW));       // cotton-ball scut
+  const head = new THREE.Group(); head.position.set(0, .185, .165); b.add(head);
+  head.add(furPart(.068, .066, .088, [0, .012, .03], null, fur, IN));      // skull
+  head.add(furPart(.044, .036, .05, [0, -.018, .098], null, furW, INW, false)); // muzzle
+  head.add(furPart(.024, .02, .03, [0, -.045, .085], null, furW, INW, false));  // chin
+  for (const sx of [-1, 1]) head.add(furPart(.044, .042, .052, [sx * .04, -.02, .06], null, furW, INW, false)); // cheeks
+  const pink = new THREE.MeshStandardMaterial({ color: 0xe0a0a2, roughness: .65, side: THREE.DoubleSide });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1a0f0b, roughness: .5 });
   for (const sx of [-1, 1]) {
-    const ear = new THREE.Group(); ear.position.set(sx * .035, .075, -.015); ear.rotation.set(-.12, 0, -sx * .22);
-    ear.add(furPart(.025, .092, .011, [0, .085, 0], null, fur, IN));
-    const inn = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), pink); inn.scale.set(.016, .075, .004); inn.position.set(0, .085, .011); ear.add(inn);
+    const ear = new THREE.Group(); ear.position.set(sx * .03, .066, -.022); ear.rotation.set(-.32, sx * .06, -sx * .3);
+    ear.add(furPart(.026, .118, .011, [0, .112, 0], null, fur, IN));
+    ear.add(furPart(.022, .03, .011, [0, .205, .0], null, furD, IND, false));          // dark ear tip
+    const inn = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), pink); inn.scale.set(.016, .092, .004); inn.position.set(0, .105, .0105); ear.add(inn);
     head.add(ear);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(.017, 16, 12), new THREE.MeshPhysicalMaterial({ color: 0x050303, roughness: .05, clearcoat: 1, envMapIntensity: 2 })); eye.position.set(sx * .056, .036, .104); head.add(eye);
-    for (let w = 0; w < 3; w++) { const wh = new THREE.Mesh(new THREE.CylinderGeometry(.0008, .0003, .09, 4), new THREE.MeshBasicMaterial({ color: 0xf2eee8 })); wh.rotation.set(0, 0, Math.PI / 2 + sx * (w - 1) * .22); wh.position.set(sx * .085, -.012 + (w - 1) * .008, .13); head.add(wh); }
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(.0185, 18, 14), new THREE.MeshPhysicalMaterial({ color: 0x1b0e08, roughness: .08, clearcoat: 1, envMapIntensity: 2.2 }));
+    eye.position.set(sx * .062, .03, .066); head.add(eye);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(.0195, .0035, 6, 18), new THREE.MeshStandardMaterial({ color: 0xd9cdbb, roughness: .9 }));
+    rim.position.set(sx * .0625, .03, .067); rim.rotation.y = sx * Math.PI / 2.4; head.add(rim);       // pale eye-ring
+    const gl = new THREE.Mesh(new THREE.SphereGeometry(.0042, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff })); gl.position.set(sx * .074, .038, .078); head.add(gl);
+    for (let w = 0; w < 4; w++) {
+      const wh = new THREE.Mesh(new THREE.CylinderGeometry(.0007, .0002, .11, 4), new THREE.MeshBasicMaterial({ color: 0xf4f0ea }));
+      wh.geometry.translate(0, .055, 0); wh.position.set(sx * .03, -.02 - w * .0045, .118); wh.rotation.set(-.12 + w * .08, 0, -sx * (Math.PI / 2 - .35 + w * .16)); head.add(wh);
+    }
   }
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(.011, 12, 10), new THREE.MeshStandardMaterial({ color: 0xd98a96, roughness: .5 })); nose.position.set(0, -.002, .152); nose.scale.set(1.2, .9, .8); head.add(nose);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(.011, 12, 10), new THREE.MeshStandardMaterial({ color: 0xd98791, roughness: .45 })); nose.position.set(0, -.002, .15); nose.scale.set(1.25, .9, .8); head.add(nose);
+  for (const sx of [-1, 1]) { const n = new THREE.Mesh(new THREE.SphereGeometry(.0034, 8, 6), dark); n.position.set(sx * .0045, -.003, .159); head.add(n); }
+  const mouth = new THREE.Mesh(new THREE.CylinderGeometry(.0006, .0006, .014, 4), dark); mouth.position.set(0, -.014, .156); head.add(mouth);
+  for (const sx of [-1, 1]) { const m2 = new THREE.Mesh(new THREE.CylinderGeometry(.0006, .0006, .016, 4), dark); m2.position.set(sx * .006, -.021, .15); m2.rotation.z = sx * 1.0; head.add(m2); }
   g.userData = { b, head };
-  g.traverse(o => { if (o.isMesh && !o.material.isShaderMaterial) o.castShadow = o.castShadow; });
   return g;
 }
 
@@ -329,24 +347,46 @@ function decorateGirl(G) {
     const dir = hd.clone().sub(fa).normalize(); const p = hd.clone().addScaledVector(dir, -.03 - i * .0085);
     attach(rig.bones[side + 'ForeArm'], b, p, new THREE.Quaternion().setFromUnitVectors(Z, dir));
   }
-  // long braid on the back of the head
-  const braidM = new THREE.MeshStandardMaterial({ color: 0x0f0809, roughness: .4, metalness: .1 });
-  const top = new THREE.Vector3(c.x, bb.max.y - .09, c.z - .075);
-  const cur = new THREE.CatmullRomCurve3([top, top.clone().add(new THREE.Vector3(0, -.12, -.06)), top.clone().add(new THREE.Vector3(0, -.3, -.07)), top.clone().add(new THREE.Vector3(0, -.55, -.06)), top.clone().add(new THREE.Vector3(0, -.8, -.055))]);
-  const tg = new THREE.TubeGeometry(cur, 40, .04, 12, false);
-  { const p = tg.attributes.position; const n = tg.attributes.position.count; for (let i = 0; i < n; i++) { const k = Math.floor(i / 13) / 40; /* taper */ const cc = cur.getPoint(Math.min(k, 1)); const v = new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i)).sub(cc); const f = (1 - k * .6) * (1 + Math.sin(k * 80) * .08); p.setXYZ(i, cc.x + v.x * f, cc.y + v.y * f, cc.z + v.z * f); } tg.computeVertexNormals(); }
-  const braid = new THREE.Mesh(tg, braidM); braid.castShadow = true; braid.frustumCulled = false;
+  // loose, long, wavy hair (like the photo): a sheet down the back + heavy locks over both shoulders
+  const hairM = new THREE.MeshPhysicalMaterial({ color: 0x0d0708, roughness: .42, metalness: .08, sheen: 1, sheenRoughness: .4, sheenColor: new THREE.Color(0x7a6a8a) });
   head.updateWorldMatrix(true, false); const hs = head.getWorldScale(new THREE.Vector3()).x;
-  const bq = head.getWorldQuaternion(new THREE.Quaternion()).invert(); braid.quaternion.copy(bq); braid.scale.setScalar(1 / hs); braid.position.copy(head.worldToLocal(new THREE.Vector3())); head.add(braid);
-  G.braid = braid;
+  const hg = new THREE.Group(); { const bq = head.getWorldQuaternion(new THREE.Quaternion()).invert(); hg.quaternion.copy(bq); hg.scale.setScalar(1 / hs); hg.position.copy(head.worldToLocal(new THREE.Vector3())); head.add(hg); }
+  const R = (bb.max.x - bb.min.x) * .5, topY = c.y + R * .15;
+  const lock = (start, drift, len, rad, waves, amp, ph) => {
+    const pts = []; const N = 9;
+    for (let i = 0; i <= N; i++) { const k = i / N, w = Math.sin(k * Math.PI * 2 * waves + ph) * amp * (.3 + k);
+      pts.push(new THREE.Vector3(start.x + drift.x * Math.pow(k, .8) + w, start.y - len * k, start.z + drift.z * Math.pow(k, .8) + Math.cos(k * Math.PI * 2 * waves + ph) * amp * .5 * k)); }
+    const cur = new THREE.CatmullRomCurve3(pts), tg = new THREE.TubeGeometry(cur, 36, rad, 8, false), p = tg.attributes.position, n = p.count, ring = 9;
+    for (let i = 0; i < n; i++) { const k = Math.min(1, Math.floor(i / ring) / 36), cc = cur.getPoint(k), f = 1 - k * .55; p.setXYZ(i, cc.x + (p.getX(i) - cc.x) * f, cc.y + (p.getY(i) - cc.y) * f, cc.z + (p.getZ(i) - cc.z) * f); }
+    tg.computeVertexNormals(); const m = new THREE.Mesh(tg, hairM); m.castShadow = true; m.frustumCulled = false; hg.add(m);
+  };
+  // back sheet
+  for (let i = 0; i < 15; i++) { const a = -1.3 + i * (2.6 / 14), sx = Math.sin(a), bz = -Math.cos(a);
+    lock(new THREE.Vector3(c.x + sx * R * 1.02, topY - Math.abs(sx) * R * .1, c.z + bz * R * .95 - .004), new THREE.Vector3(sx * .05, 0, -.045 - Math.abs(sx) * .03), .5 + Math.cos(a) * .22 - Math.abs(sx) * .12, .03, 1.5 + (i % 3) * .4, .006 + (i % 2) * .004, i * 1.3); }
+  // front locks over the shoulders
+  for (const sx of [-1, 1]) for (let j = 0; j < 5; j++) {
+    lock(new THREE.Vector3(c.x + sx * (R * 1.02 + j * .004), topY - .015 - j * .012, c.z + R * (.05 - j * .05)), new THREE.Vector3(sx * (.075 + j * .012), 0, .055 + j * .012), .36 + j * .035, .026 - j * .002, 1.6 + j * .25, .007, j * 1.7 + (sx > 0 ? 0 : 2)); }
+  G.braid = hg;
+  // oversized thin-frame glasses
+  { const eyes = []; root.traverse(o => { if (o.name === 'EyeLeft' || o.name === 'EyeRight') eyes.push(new THREE.Box3().setFromObject(o).getCenter(new THREE.Vector3())); });
+    if (eyes.length === 2) {
+      const d = Math.abs(eyes[0].x - eyes[1].x), ey = (eyes[0].y + eyes[1].y) / 2, w = d * .92, h = d * .8;
+      const fz = Math.max(hit(new THREE.Vector3(eyes[0].x, eyes[0].y, c.z + 1), new THREE.Vector3(0, 0, -1))?.point.z ?? 0, hit(new THREE.Vector3(eyes[1].x, eyes[1].y, c.z + 1), new THREE.Vector3(0, 0, -1))?.point.z ?? 0, hit(new THREE.Vector3(c.x, ey, c.z + 1), new THREE.Vector3(0, 0, -1))?.point.z ?? 0);
+      const gl = new THREE.Group(), fm = new THREE.MeshStandardMaterial({ color: 0xe6c8a2, metalness: 1, roughness: .22, envMapIntensity: 1.6 }), lm = new THREE.MeshPhysicalMaterial({ color: 0xdfe8f0, roughness: .05, metalness: 0, transparent: true, opacity: .16, envMapIntensity: 1.4, side: THREE.DoubleSide, depthWrite: false });
+      const outline = (cx0) => { const pts = []; for (let i = 0; i < 56; i++) { const a = i / 56 * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a), e = 2 / 3.4; pts.push(new THREE.Vector3(cx0 + w / 2 * Math.sign(ca) * Math.pow(Math.abs(ca), e) * (ca > 0 ? .98 : 1), h / 2 * Math.sign(sa) * Math.pow(Math.abs(sa), e) - (sa < 0 ? h * .02 : 0), 0)); } return pts; };
+      for (const sx of [-1, 1]) { const pts = outline(sx * d / 2), cur = new THREE.CatmullRomCurve3(pts, true); gl.add(new THREE.Mesh(new THREE.TubeGeometry(cur, 80, .0016, 6, true), fm));
+        const sh = new THREE.Shape(pts.map(v => new THREE.Vector2(v.x, v.y))); gl.add(new THREE.Mesh(new THREE.ShapeGeometry(sh, 8), lm));
+        const t = new THREE.CatmullRomCurve3([new THREE.Vector3(sx * (d / 2 + w / 2), h * .28, 0), new THREE.Vector3(sx * (d / 2 + w / 2 + .004), h * .28, -.04), new THREE.Vector3(sx * (R * 1.04), h * .25, -.11), new THREE.Vector3(sx * (R * 1.03), h * .1, -.15)]); gl.add(new THREE.Mesh(new THREE.TubeGeometry(t, 14, .0016, 5, false), fm)); }
+      gl.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(-d / 2 + w / 2, h * .2, 0), new THREE.Vector3(0, h * .3, .006), new THREE.Vector3(d / 2 - w / 2, h * .2, 0)]), 10, .0017, 5, false), fm));
+      gl.traverse(o => { o.castShadow = false; o.frustumCulled = false; });
+      attach(head, gl, new THREE.Vector3(c.x, ey - .002, fz + .016), new THREE.Quaternion());
+    } }
   // dupatta sash: left shoulder -> across the chest -> right hip
   { const tm = topMesh(G), g0 = G.group.getWorldPosition(new THREE.Vector3()), cx = g0.x; tm.updateWorldMatrix(true, false);
     const sh = rig.pos('LeftArm', new THREE.Vector3()), y0 = sh.y + .02;
     const P = (x, y, o = .02) => new THREE.Vector3(cx + x, y, surfaceZ(tm, cx + x, y) + o);
     const pts = [new THREE.Vector3(cx + .13, y0 + .02, surfaceZ(tm, cx + .13, y0 - .06) - .02), P(.1, y0 - .1), P(.0, y0 - .24), P(-.1, y0 - .4), P(-.19, y0 - .56), P(-.215, y0 - .75, .03)];
     const m = new THREE.Mesh(ribbon(pts, .15, new THREE.Vector3(0, 0, 1), 34), new THREE.MeshPhysicalMaterial({ map: stoleTex('#c81e58', '#f1c25a', '#f1c25a'), roughness: .5, sheen: 1, sheenColor: new THREE.Color(0xff8fb0), side: THREE.DoubleSide })); bindWorld(rig.bones.Spine2, m); }
-  // gajra (jasmine garland) on the braid start
-  for (let i = 0; i < 9; i++) { const f = new THREE.Mesh(new THREE.SphereGeometry(.013, 10, 8), new THREE.MeshStandardMaterial({ color: 0xfffaf0, roughness: .6, emissive: 0x332a20 })); const a = -1.2 + i * .3; f.scale.multiplyScalar(1 / hs); f.position.copy(head.worldToLocal(new THREE.Vector3(c.x + Math.sin(a) * .105, c.y + .085 + Math.cos(a) * .02, c.z - .06 - Math.cos(a) * .035))); head.add(f); }
 }
 
 
@@ -388,6 +428,39 @@ function decorateBoy(B) {
     const x0 = cx + sx * .075, pts = [], N = 7;
     for (let i = 0; i <= N; i++) { const k = i / N, y = yTop - k * .66; const zz = surfaceZ(tm, x0 + sx * k * .015, y) + .014 + k * .004; pts.push(new THREE.Vector3(x0 + sx * (.01 + k * .025), y, zz)); }
     const m = new THREE.Mesh(ribbon(pts, .115, new THREE.Vector3(0, 0, 1)), mat); bindWorld(rig.bones.Spine2, m);
+  }
+  // thin silver chain (from the photo)
+  { const pts = []; for (let i = 0; i <= 12; i++) { const k = i / 12, x = cx + (k - .5) * .15, y = neck.y - .03 - .085 * (1 - Math.pow((k - .5) * 2, 2)) * 1; pts.push(new THREE.Vector3(x, y, surfaceZ(tm, x, y) + .012)); }
+    const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 24, .0022, 6, false), new THREE.MeshStandardMaterial({ color: 0xdfe3ea, metalness: 1, roughness: .22, envMapIntensity: 1.5 })); bindWorld(rig.bones.Spine2, m); }
+  // swept-up textured quiff, built from individual tapered locks (like the photo)
+  { let headMesh; root.traverse(o => { if (o.name === 'Wolf3D_Head') headMesh = o; });
+    const head = rig.bones.Head; root.updateMatrixWorld(true); head.updateWorldMatrix(true, false);
+    const ray = new THREE.Raycaster(), bb = new THREE.Box3().setFromObject(headMesh), c = bb.getCenter(new THREE.Vector3()), R = (bb.max.x - bb.min.x) * .5;
+    const surf = (x, z) => { ray.set(new THREE.Vector3(x, bb.max.y + .3, z), new THREE.Vector3(0, -1, 0)); const h = ray.intersectObject(headMesh, false)[0]; return h ? h.point.y : bb.max.y - .02; };
+    const hs = head.getWorldScale(new THREE.Vector3()).x;
+    const hg = new THREE.Group(); { const bq = head.getWorldQuaternion(new THREE.Quaternion()).invert(); hg.quaternion.copy(bq); hg.scale.setScalar(1 / hs); hg.position.copy(head.worldToLocal(new THREE.Vector3())); head.add(hg); }
+    const hm = new THREE.MeshPhysicalMaterial({ color: 0x0e0a08, roughness: .5, metalness: .03, sheen: .8, sheenRoughness: .4, sheenColor: new THREE.Color(0x6a625c) });
+    const rnd = (() => { let s0 = 11; return () => (s0 = (s0 * 16807) % 2147483647) / 2147483647; })();
+    let eyeY = c.y + R * .1; { const eb = new THREE.Box3(); root.traverse(o => { if (o.name === 'EyeLeft') eb.setFromObject(o); }); if (!eb.isEmpty()) eyeY = eb.getCenter(new THREE.Vector3()).y; }
+    const rayV = (x, z) => { ray.set(new THREE.Vector3(x, bb.max.y + .3, z), new THREE.Vector3(0, -1, 0)); const h = ray.intersectObject(headMesh, false)[0]; return h ? h.point.y : bb.max.y - .02; };
+    const rayZ = (x, y) => { ray.set(new THREE.Vector3(x, y, c.z + R * 2), new THREE.Vector3(0, 0, -1)); const h = ray.intersectObject(headMesh, false)[0]; return h ? h.point.z : c.z + R * .8; };
+    const quiffLock = (u, up, len, rad) => {
+      // u in [-1,1] across the forehead; starts at the hairline, rises, arcs back over the crown and hugs the skull
+      const x0 = c.x + u * R * .62, hy = eyeY + R * (.7 - .2 * u * u), z0 = rayZ(x0, hy) - .004;
+      const xr = f => c.x + (x0 - c.x) * f, zA = c.z + R * .38, zB = c.z - R * .08, zC = c.z - R * (.38 + len * .25), sw = .012 * u;
+      const P = [
+        new THREE.Vector3(x0, hy, z0),
+        new THREE.Vector3(x0 + sw * .3, hy + .026 + up * .01, z0 + .014),
+        new THREE.Vector3(xr(.92) + sw, rayV(xr(.92), zA) + .02 + up * .026, zA),
+        new THREE.Vector3(xr(.8) + sw * 1.5, rayV(xr(.8), zB) + .016 + up * .014, zB),
+        new THREE.Vector3(xr(.6) + sw * 2, rayV(xr(.6), zC) + .006, zC),
+      ];
+      const cur = new THREE.CatmullRomCurve3(P), seg = 26, tg = new THREE.TubeGeometry(cur, seg, rad, 6, false), p = tg.attributes.position, ring = 7;
+      for (let i = 0; i < p.count; i++) { const k = Math.min(1, Math.floor(i / ring) / seg), cc = cur.getPoint(k), f = .8 + .3 * Math.sin(Math.min(1, k * 3) * Math.PI / 2) - Math.max(0, k - .5) * 1.1; p.setXYZ(i, cc.x + (p.getX(i) - cc.x) * f, cc.y + (p.getY(i) - cc.y) * f * .85, cc.z + (p.getZ(i) - cc.z) * f); }
+      tg.computeVertexNormals(); const m = new THREE.Mesh(tg, hm); m.castShadow = true; m.frustumCulled = false; hg.add(m);
+    };
+    for (let i = 0; i < 46; i++) { const u = (i / 45) * 2 - 1 + (rnd() - .5) * .04, e = 1 - Math.abs(u); quiffLock(u, .25 + e * .75 + rnd() * .3, rnd(), .0062 + e * .0025 + rnd() * .0018); }
+    B.quiff = hg;
   }
   // gold buttons
   const gm = GOLDM();
