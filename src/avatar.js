@@ -154,7 +154,8 @@ function makeGirl(root) {
   for (const side of ['Left', 'Right']) for (let i = 0; i < 5; i++) { const b = new THREE.Mesh(new THREE.TorusGeometry(.03, .0045, 8, 24), i % 2 ? jew : new THREE.MeshStandardMaterial({ color: 0xc9142e, roughness: .3, metalness: .2 })); g.add(b); bangles.push({ b, side, i }); }
   const bindi = new THREE.Mesh(new THREE.CircleGeometry(.0065, 16), new THREE.MeshBasicMaterial({ color: 0xc40d22 })); g.add(bindi);
   const anchor = new THREE.Object3D(); g.add(anchor);
-  return { group: g, rig, anchor, skirt, dup, dg, ears, neck, bangles, bindi, kind: 'girl' };
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(.004, .004, .4, 6), new THREE.MeshStandardMaterial({ color: 0x8a8a90, metalness: .8, roughness: .4 })); stick.visible = false; g.add(stick);
+  return { group: g, rig, anchor, stick, skirt, dup, dg, ears, neck, bangles, bindi, kind: 'girl' };
 }
 
 export { Rig, X, Y, Z };

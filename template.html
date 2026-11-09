@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Happy Diwali ♥ — a little 3D surprise</title>
 <style>/*FONTS*/.btn:disabled{opacity:.65;pointer-events:none;filter:saturate(.7)}
+#bars i{position:fixed;left:0;right:0;height:calc(var(--bars,0)*7vh);background:#000;z-index:-1;pointer-events:none}#bars i:first-child{top:0}#bars i:last-child{bottom:0}
 </style>
 <style>
 :root{--gold:#ffd27a;--gold2:#ffb347;--rose:#ff4d7d;--ink:#2a0a1e;--pad:max(18px,env(safe-area-inset-bottom))}
@@ -111,6 +112,7 @@ body.rec *{transition:none!important;animation:none!important}
   <div id="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <button id="mute" aria-label="Sound"><svg viewBox="0 0 24 24"><path class="w" d="M4 9v6h4l5 4V5L8 9H4zM16.5 8.5a5 5 0 010 7M19 6a8.5 8.5 0 010 12"/><path class="x" d="M4 9v6h4l5 4V5L8 9H4zM17 9l5 6M22 9l-5 6"/></svg></button>
   <div id="caption"></div>
+  <div id="bars"><i></i><i></i></div>
   <button id="cta"><span></span></button>
 </div>
 

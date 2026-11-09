@@ -116,7 +116,7 @@ export class Sparks {
       a[i] = f; col[i * 3] = base[i * 3] * (1 + (1 - k)); col[i * 3 + 1] = base[i * 3 + 1] * (1 + (1 - k) * .6); col[i * 3 + 2] = base[i * 3 + 2];
     }
     const g = this.mesh.geometry;
-    g.attributes.position.needsUpdate = g.attributes.aCol.needsUpdate = g.attributes.aA.needsUpdate = true;
+    g.attributes.position.needsUpdate = g.attributes.aCol.needsUpdate = g.attributes.aA.needsUpdate = g.attributes.aS.needsUpdate = true;
   }
 }
 
@@ -217,7 +217,7 @@ export class Fireworks {
     const dur = .9 + Math.random() * .25;
     r.userData.t0 = this.time; r.visible = true; r.userData.dur = dur;
     r.material.uniforms.uA.value.copy(origin); r.material.uniforms.uB.value.copy(target); r.material.uniforms.uDur.value = dur;
-    this.audio?.whoosh();
+    this.audio?.whoosh(origin);
     this.schedule(dur, () => this.burst(target, color, color2, kind, size));
   }
   burst(pos, color, color2, kind = 0, size = .55) {
@@ -228,7 +228,7 @@ export class Fireworks {
     { const i = this.pool.indexOf(b), sm = this.smokes[i]; sm.visible = true; sm.userData.t0 = this.time; sm.material.uniforms.uOrigin.value.copy(pos); sm.material.uniforms.uLit.value.set(color).multiplyScalar(1.1); sm.material.uniforms.uSize.value = 3 + size * 4;
       this.lightK = 1; this.flashCol = new THREE.Color(color); }
     this.flash = Math.min(.8, this.flash + .35);
-    this.audio?.boom(clamp(pos.length() / 90, .3, 1));
+    this.audio?.boom(clamp(pos.length() / 90, .3, 1), pos);
   }
   async writeText(lines, center, width) {
     const W = 1400, H = 460, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');

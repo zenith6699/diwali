@@ -9,6 +9,7 @@ import { buildWorld, SH } from './world.js';
 import { Couple, furUni } from './chars.js';
 import { makeSky, Sparks, Fireworks, Petals, Lanterns, fxUniforms, flameUni } from './fx.js';
 import { Sound } from './audio.js';
+import { makeShot } from './director.js';
 import { buildRoom, ROOM_X } from './room.js';
 import { ease, clamp, lerp, sleep, rand } from './util.js';
 
@@ -54,6 +55,7 @@ export const LOW = !qs.has('hq') && (qs.has('low') || /swiftshader|llvmpipe|soft
 window.__LOW = LOW; window.__GPU = GPU;
 const renderer = new THREE.WebGLRenderer({ canvas, context: gl2, antialias: false });
 const isMobile = matchMedia('(pointer:coarse)').matches || innerWidth < 700;
+let baseFov = 50;
 let PR = LOW ? 1 : Math.min(devicePixelRatio || 1, SAFE >= 2 ? .8 : SAFE ? 1 : isMobile ? 1.25 : 2);
 renderer.setPixelRatio(PR);
 const NOSH = LOW || SAFE >= 2; renderer.shadowMap.enabled = !NOSH; renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -79,9 +81,9 @@ const world = buildWorld(scene);
 const sky = makeSky(scene);
 const couple = new Couple(); scene.add(couple.group);
 const room = buildRoom(scene);
-const audio = new Sound();
+const audio = new Sound(); window.__audio = audio;
 const fw = new Fireworks(scene, audio);
-const sparks = new Sparks(700); scene.add(sparks.mesh);
+const sparks = new Sparks(1000); scene.add(sparks.mesh); window.__sparks = sparks;
 const embers = new Sparks(160); embers.gravity = -.15; embers.drag = .1; scene.add(embers.mesh);
 const petals = new Petals(scene);
 const lanterns = new Lanterns(scene);
@@ -113,7 +115,7 @@ if (qs.get('aa') === 'smaa') composer.addPass(new SMAAPass());
 function resize() {
   const w = innerWidth, h = innerHeight, a = w / h;
   renderer.setPixelRatio(PR); renderer.setSize(w, h, false); composer.setPixelRatio(PR); composer.setSize(w, h);
-  camera.aspect = a; camera.fov = a < .8 ? 64 : a < 1.2 ? 54 : 46; camera.updateProjectionMatrix();
+  camera.aspect = a; baseFov = a < .8 ? 64 : a < 1.2 ? 54 : 46; camera.fov = baseFov; camera.updateProjectionMatrix();
   grade.uniforms.uRes.value.set(w * PR, h * PR); fxUniforms.uScale.value = (h * PR) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)); fxUniforms.uPR.value = PR;
 }
 addEventListener('resize', resize); resize();
@@ -131,14 +133,27 @@ function stepTweens(dt) {
 }
 
 // ------------------------------------------------------------------ camera rig
-const cam = { pos: V(0, 2.2, 7.5), look: V(0, 1.3, 0), follow: null, orbit: false };
+const cam = { pos: V(0, 2.2, 7.5), look: V(0, 1.3, 0), follow: null, orbit: false, fovK: 1, roll: 0, bars: 0, expo: 0 };
+let camTok = 0;
 const ptr = { x: 0, y: 0, sx: 0, sy: 0 };
 addEventListener('pointermove', e => { ptr.x = e.clientX / innerWidth * 2 - 1; ptr.y = e.clientY / innerHeight * 2 - 1; });
-function camTo(pos, look, dur = 3, e = ease.inOut) {
-  cam.follow = null; const p0 = cam.pos.clone(), l0 = cam.look.clone();
-  return tween(dur, k => { cam.pos.lerpVectors(p0, pos, k); cam.look.lerpVectors(l0, look, k); }, e);
+// every camera move is a Theatre.js sequence (see director.js): arcing path, lens breathing, slight dutch roll, letterbox
+let dutchSide = 1;
+async function camTo(pos, look, dur = 3, e = ease.inOut, o = {}) {
+  cam.follow = null; const id = ++camTok;
+  const p0 = cam.pos.clone(), l0 = cam.look.clone(), f0 = cam.fovK, r0 = cam.roll, b0 = cam.bars, x0 = cam.expo;
+  const dist = p0.distanceTo(pos), ez = e === ease.out ? 'out' : e === ease.sine ? 'sine' : 'inOut';
+  const to = { pos, look, fov: o.fov ?? 1, roll: o.roll ?? 0, bars: o.bars ?? cam.bars, expo: o.expo ?? 0 };
+  let shot = null;
+  try { shot = await makeShot({ pos: p0, look: l0, fov: f0, roll: r0, bars: b0, expo: x0 }, to, { dur, ease: ez, arc: o.arc ?? Math.min(1.1, dist * .14), lift: o.lift ?? Math.min(.5, dist * .05), dutch: o.dutch ?? (.014 * (dutchSide *= -1)), push: o.push ?? .025 }); } catch (err) { console.warn('theatre shot failed', err); }
+  if (id !== camTok) return;
+  return tween(dur, k => {
+    if (id !== camTok) return;
+    if (shot) { const v = shot.set(k * dur); cam.pos.set(v.px, v.py, v.pz); cam.look.set(v.lx, v.ly, v.lz); cam.fovK = v.fov; cam.roll = v.roll; cam.bars = v.bars; cam.expo = v.expo; }
+    else { cam.pos.lerpVectors(p0, pos, k); cam.look.lerpVectors(l0, look, k); }
+  }, t => t);
 }
-function camSnap(pos, look) { cam.follow = null; cam.pos.copy(pos); cam.look.copy(look); }
+function camSnap(pos, look) { cam.follow = null; camTok++; cam.pos.copy(pos); cam.look.copy(look); cam.fovK = 1; cam.roll = 0; }
 
 // ------------------------------------------------------------------ UI
 const ui = {
@@ -168,6 +183,7 @@ async function fadeIn(ms = 900) { setFade(0); await wait(ms / 1000); }
 
 // ------------------------------------------------------------------ state
 const state = { night: 0, sparkler: false, focus: V(0, 0, 0), inRoom: false };
+const barsTo = (b, d = 1.5) => { const b0 = cam.bars; return tween(d, k => cam.bars = lerp(b0, b, k), ease.sine); };
 const nightTo = (n, d = 5) => { const n0 = state.night; return tween(d, k => state.night = lerp(n0, n, k), ease.sine); };
 const letterText = () => (CFG.message || `Meri ${CFG.to},\n\nDiyon ki roshni se zyada tumhari muskaan meri zindagi roshan karti hai. Tum ho toh har din Diwali jaisa lagta hai.\n\nIs Diwali pe bas ek hi wish hai: tum hamesha mere saath rehna.\n\nHappy Diwali ♥`);
 
@@ -184,6 +200,7 @@ async function walkTo(p, dur, finalRot) {
 }
 function turnTo(rot, dur = 1.2) { const g = couple.group, r1 = g.rotation.y; let d = rot - r1; d = Math.atan2(Math.sin(d), Math.cos(d)); return tween(dur, k => g.rotation.y = r1 + d * k, ease.out); }
 function followCouple(off, lookOff, damp = 3) {
+  camTok++;
   cam.follow = dt => {
     const gp = couple.group.position, tp = gp.clone().add(off), tl = gp.clone().add(lookOff), k = 1 - Math.exp(-damp * dt);
     cam.pos.lerp(tp, k); cam.look.lerp(tl, k);
@@ -198,12 +215,14 @@ const chapters = [
   async function arrive() {
     state.night = 0; couple.group.position.set(0, 0, 0); couple.group.rotation.y = Math.PI;
     state.focus.set(0, 0, 0);
-    camTo(V(1.0, 1.6, 4.7), V(-.1, 1.3, -.4), 3.4);
+    camTo(V(1.0, 1.6, 4.7), V(-.1, 1.3, -.4), 3.4, ease.inOut, { arc: 1.1, bars: .6, fov: .96 });
     caption('Aaj ki shaam, diyon ki roshni aur bas hum dono ✨');
     await wait(2);
     await cta('Light the phuljhadi');
     try { sessionStorage.setItem('dw_ch', '1'); localStorage.setItem('dw_ch', '1'); } catch (e) { }
-    audio.crackle(6); state.sparkler = true; world.lights.couple.intensity = 7;
+    audio.crackle(6, couple.group.position.clone().setY(1.9)); state.sparkler = true; world.lights.couple.intensity = 7;
+    turnTo(.18, 1.4);
+    camTo(V(-.75, 1.5, 4.0), V(0, 1.38, -.2), 6.5, ease.sine, { arc: -1.3, lift: .1, fov: .92, push: .03, dutch: .02 });
     tween(.9, k => couple.setSparkler(k));
     caption('Dekho, kitni pyaari lag rahi hai ye shaam…');
     await wait(6.5);
@@ -216,7 +235,7 @@ const chapters = [
     const f = V(0, Math.sin(pitch), -Math.cos(pitch)), r = V(1, 0, 0), u = V(0, Math.cos(pitch), Math.sin(pitch));
     const P = (d, dx = 0, dy = 0) => cp.clone().addScaledVector(f, d).addScaledVector(r, dx).addScaledVector(u, dy);
     const D = 70;
-    await Promise.all([turnTo(Math.PI, 1.5), camTo(cp, P(120), 3.6), nightTo(.55, 5), tween(2.4, k => world.setOverhead(1 - k), t => t)]);
+    await Promise.all([turnTo(Math.PI, 1.5), camTo(cp, P(120), 3.6, ease.inOut, { bars: 0, arc: 0, lift: 0, dutch: 0, push: 0 }), nightTo(.55, 5), tween(2.4, k => world.setOverhead(1 - k), t => t)]);
     caption('Aasmaan bhi aaj humare liye jagmaga raha hai…');
     const a = camera.aspect, hf = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * a);
     const w = clamp(2 * D * Math.tan(hf / 2) * .8, 30, 80);
@@ -239,6 +258,7 @@ const chapters = [
     hideCaption();
   },
   async function walk() {
+    barsTo(.6, 2);
     tween(3, k => world.setOverhead(k), t => t);
     await nightTo(.3, 3);
     caption('Chalo, is galli mein thodi der saath chalte hain…');
@@ -257,7 +277,7 @@ const chapters = [
     await camTo(V(1.6, 1.95, dz + 6.2), V(-4.2, 1.8, dz - .8), 2.8);
     caption('Ek diya, ek wish — sirf tumhare liye 🪔');
     await cta('Light the diya');
-    audio.chime();
+    audio.chime(V(world.door.pos.x, 1.4, world.door.pos.z));
     world.door.diyaIds.forEach((id, i) => after(i * .45, () => world.diyas.light(id, true)));
     tween(2, k => world.lights.door.intensity = 9 * k);
     for (let i = 0; i < 40; i++) after(i * .06, () => embers.emit(world.door.ledge[0].clone().add(V((Math.random() - .5) * 2.4, .2, 0)), V((Math.random() - .5) * .6, .8 + Math.random(), (Math.random() - .5) * .3), 1.8 + Math.random(), .12, new THREE.Color(1, .6, .2)));
@@ -272,12 +292,12 @@ const chapters = [
     caption('Chalo, bhagwan ka ashirwad bhi le lete hain 🙏');
     await walkTo(V(0, 0, tz + 17), 7.5, Math.PI);
     await nightTo(.6, 3);
-    await camTo(V(.6, 2.7, tz + 25), V(0, 4.3, tz + 4), 3, ease.out);
+    await camTo(V(.6, 2.7, tz + 25), V(0, 4.3, tz + 4), 3, ease.out, { bars: .8, fov: .94 });
     await cta('Ring the bell');
     hideCaption();
     world.lights.temple.intensity = 0; tween(3, k => world.lights.temple.intensity = 22 * k);
     const bell = world.bell;
-    audio.bell(); after(.9, () => audio.bell()); after(1.9, () => audio.bell());
+    const bp = V(0, 5, tz + 4); audio.bell(bp); after(.9, () => audio.bell(bp)); after(1.9, () => audio.bell(bp));
     tween(5, k => { bell.rotation.z = Math.sin(k * 5 * Math.PI * 2) * .55 * Math.exp(-k * 3.2); }, t => t);
     petals.start(V(0, 0, tz + 13), 6, 10);
     world.templeDiyas.forEach((id, i) => after(.5 + i * .07, () => world.diyas.light(id, true)));
@@ -291,7 +311,7 @@ const chapters = [
     await fadeOut('#ffe9b8', 800);
     couple.group.visible = false; world.lights.couple.intensity = 0; room.group.visible = true; state.inRoom = true; state.focus.set(ROOM_X, 1, -1);
     nightTo(0, .1); state.night = 0;
-    camSnap(V(ROOM_X + .3, 2.0, 6.6), V(ROOM_X, 1.5, -1.7));
+    camSnap(V(ROOM_X + .3, 2.0, 6.6), V(ROOM_X, 1.5, -1.7)); cam.bars = 0;
     await fadeIn(900);
     camTo(V(ROOM_X, 2.0, 3.4), V(ROOM_X, 1.35, -1.7), 3.4);
     caption('Tumhare liye ek chhota sa tohfa 🎁');
@@ -317,7 +337,7 @@ const chapters = [
     await fadeIn(1400);
     lanterns.start(V(22, 0, R.z - 2), 46, 34, R.y - 6);
     fw.burst(V(30, R.y + 40, R.z - 90), 0xffb300, 0xff5a7a, 0, .7);
-    camTo(V(R.camX + 1.2, R.y + 2.2, R.z + .8), V(R.x + 16, R.y + 10, R.z - 5), 14, ease.sine);
+    camTo(V(R.camX + 1.2, R.y + 2.2, R.z + .8), V(R.x + 16, R.y + 10, R.z - 5), 14, ease.sine, { bars: .9, fov: .9, arc: .6, lift: .4, push: .02 });
     audio.heart();
     await wait(2.5);
     showFinal();
@@ -349,6 +369,7 @@ async function run(from = 0) {
 window.__story = { renderer, run, chapters, state, cam, couple, world, fw, room, camera, tweens };
 
 // ------------------------------------------------------------------ frame loop
+let barsShown = -1;
 const clock = new THREE.Clock(); let T = 0, frames = 0, acc = 0, perfStage = 0, perfT = 0;
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), col = new THREE.Color();
 const fogDusk = new THREE.Color(.5, .27, .24), fogNight = new THREE.Color(.03, .03, .07);
@@ -369,13 +390,17 @@ function tick(raw, doRender) {
 
   // sparkler
   if (state.sparkler) {
-    const a = couple.boy.userData.anchor; a.getWorldPosition(tmp);
-    const n = Math.max(2, Math.round(260 * dt));
-    for (let i = 0; i < n; i++) {
-      const th = Math.random() * 6.283, ph = Math.acos(2 * Math.random() - 1), sp = 1.2 + Math.random() * 3.2;
-      sparks.emit(tmp, tmp2.set(Math.sin(ph) * Math.cos(th) * sp, Math.cos(ph) * sp + .8, Math.sin(ph) * Math.sin(th) * sp), .35 + Math.random() * .7, .13 + Math.random() * .1, col.setRGB(4, 2.2 + Math.random() * .6, .6 + Math.random() * .5));
-    }
-    sparkLight.position.copy(tmp); sparkLight.intensity = 1.6 + Math.random() * 1.6;
+    const anchors = [couple.boy.userData.anchor, couple.girl.userData.anchor].filter(Boolean), pa = new THREE.Vector3();
+    anchors.forEach((a, ai) => {
+      a.getWorldPosition(tmp); pa.add(tmp);
+      const n = Math.max(2, Math.round(200 * dt));
+      for (let i = 0; i < n; i++) {
+        const th = Math.random() * 6.283, ph = Math.acos(2 * Math.random() - 1), sp = .5 + Math.random() * 1.9;
+        sparks.emit(tmp, tmp2.set(Math.sin(ph) * Math.cos(th) * sp, Math.cos(ph) * sp + .5, Math.sin(ph) * Math.sin(th) * sp), .3 + Math.random() * .55, .028 + Math.random() * .035, col.setRGB(4, 2.2 + Math.random() * .6, .6 + Math.random() * .5));
+      }
+    });
+    if (anchors.length) pa.multiplyScalar(1 / anchors.length);
+    sparkLight.position.copy(pa); sparkLight.intensity = 2.2 + Math.random() * 2.2;
   } else sparkLight.intensity *= .85;
   sparks.update(dt); embers.update(dt);
   if (Math.random() < dt * 12) { const p = tmp.set(state.focus.x + (Math.random() - .5) * 18, .5 + Math.random() * 6, state.focus.z - 4 + (Math.random() - .5) * 26); embers.emit(p, tmp2.set((Math.random() - .5) * .3, .3 + Math.random() * .4, (Math.random() - .5) * .3), 4 + Math.random() * 4, .05 + Math.random() * .05, col.setRGB(1, .65, .25)); }
@@ -388,7 +413,7 @@ function tick(raw, doRender) {
   hemi.color.setRGB(lerp(1, .55, n), lerp(.7, .4, n), lerp(.8, .85, n)); hemi.groundColor.setRGB(lerp(.42, .12, n), lerp(.16, .05, n), lerp(.36, .2, n));
   dir.intensity = lerp(1.7, .6, n); dir.color.setRGB(1, lerp(.78, .62, n), lerp(.52, .6, n));
   scene.fog.color.copy(fogDusk).lerp(fogNight, n); scene.fog.density = lerp(.0085, .0065, n);
-  renderer.toneMappingExposure = lerp(.92, .95, n) + fw.flash * .12;
+  renderer.toneMappingExposure = lerp(.92, .95, n) + fw.flash * .12 + cam.expo;
   bloom.strength = lerp(.42, .5, n);
   // shadow light follows focus
   const f = couple.group.visible && !state.inRoom ? couple.group.position : state.focus;
@@ -399,6 +424,10 @@ function tick(raw, doRender) {
   ptr.sx += (ptr.x - ptr.sx) * .05; ptr.sy += (ptr.y - ptr.sy) * .05;
   camera.position.set(cam.pos.x + ptr.sx * .35 + Math.sin(T * .6) * .035, cam.pos.y - ptr.sy * .14 + Math.sin(T * .8) * .03, cam.pos.z);
   camera.lookAt(cam.look.x + ptr.sx * 1.4, cam.look.y - ptr.sy * .7, cam.look.z);
+  if (cam.roll) camera.rotateZ(cam.roll);
+  audio.setListener(camera.position, cam.look);
+  { const fv = baseFov * cam.fovK; if (Math.abs(fv - camera.fov) > .01) { camera.fov = fv; camera.updateProjectionMatrix(); fxUniforms.uScale.value = (innerHeight * PR) / (2 * Math.tan(THREE.MathUtils.degToRad(fv) / 2)); }
+    if (cam.bars !== barsShown) { barsShown = cam.bars; document.documentElement.style.setProperty('--bars', cam.bars.toFixed(3)); } }
 
   if (doRender) try { composer.render(); } catch (err) { if (!window.__renderErr) { window.__renderErr = 1; const e = document.getElementById('lerr') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'lerr' })); e.style.cssText = 'position:fixed;z-index:99;left:16px;right:16px;top:16px;color:#ffd9a0;font:13px system-ui;background:#000a;padding:10px;border-radius:8px'; e.textContent = 'Render error: ' + err.message; } }
 
@@ -470,7 +499,8 @@ async function boot(rec = false) {
   if (RESUME > 0) { hint('Wapas wahin se shuru…'); begin(RESUME); }
 }
 function begin(r0) { try { audio.start(); } catch (e) { } ui.intro.classList.add('off'); $('#hud').classList.add('on'); cam.follow = null; run(r0); }
-addEventListener('pointerdown', () => { try { audio.ctx && audio.ctx.state !== 'running' && audio.ctx.resume(); } catch (e) { } }, { passive: true });
+const wake = () => { try { if (!audio.ctx) audio.start(); else if (audio.ctx.state !== 'running') audio.ctx.resume(); } catch (e) { } };
+['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(ev => addEventListener(ev, wake, { passive: true, capture: true }));
 $('#enter').addEventListener('click', async () => {
   if ($('#enter').disabled) return;
   try { localStorage.removeItem('dw_ch'); sessionStorage.removeItem('dw_ch'); } catch (e) { }

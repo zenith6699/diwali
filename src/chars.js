@@ -227,7 +227,7 @@ export class Couple {
     boy.group.position.x = -.36; girl.group.position.x = .44;
     this.group.add(boy.group, girl.group);
     this.boy = { userData: { anchor: boy.anchor } };
-    this.girl = { userData: {} };
+    this.girl = { userData: { anchor: girl.anchor } };
     this.group.updateMatrixWorld(true);
     decorateGirl(girl); decorateBoy(boy);
     this.group.traverse(o => { if (o.isMesh) { o.receiveShadow = false; } });
@@ -268,18 +268,21 @@ export class Couple {
       turn(B, 'Head', Y, .22 + Math.sin(t * .7) * .05 + (sp > .5 ? -.25 * sp : 0)); turn(B, 'Head', Z, -.05); turn(B, 'Neck', X, .03);
       turn(G, 'Head', Y, -.2 + Math.sin(t * .6 + 2) * .05); turn(G, 'Head', Z, .07);
       // girl arms: right (-x) holds his hand, left (+x) hangs
-      aim(G, 'LeftArm', 'LeftForeArm', nv(.22, -.96, -s * .25 * wk)); aim(G, 'LeftForeArm', 'LeftHand', nv(.2, -.9, .3 + s * .1 * wk));
+      const gw = Math.sin(t * 4.6 + 1) * .22 * sp, gw2 = Math.sin(t * 3.7 + 2) * .15 * sp;
+      aim(G, 'LeftArm', 'LeftForeArm', up(nv(.22, -.96, -s * .25 * wk), nv(.4 - gw, .1 + gw2, .9), sp));
+      aim(G, 'LeftForeArm', 'LeftHand', up(nv(.2, -.9, .3 + s * .1 * wk), nv(.2 - gw * .5, .85 + gw2, .45), sp));
+      aim(G, 'LeftHand', 'LeftHandMiddle1', up(nv(.1, -1, .2), nv(.1, 1, .25), sp));
       // girl skirt / dupatta
       G.skirt.position.y = bob; G.skirt.rotation.z = Math.sin(ph) * .035 * wk; G.skirt.rotation.x = Math.cos(ph * 2) * .02 * wk; G.skirt.scale.setScalar(1 + Math.sin(t * 1.4) * .004);
-      // sparkler stick follows the hand
-      const hp = B.rig.pos('RightHand', _a); this.group.worldToLocal(hp);
-      B.group.worldToLocal(_b.copy(hp)); // hp is in couple space; convert via world instead
-      const hw = B.rig.pos('RightHand', new THREE.Vector3()), fw = B.rig.pos('RightHandMiddle1', new THREE.Vector3());
-      const dirW = fw.clone().sub(hw).normalize();
-      const tip = hw.clone().addScaledVector(dirW, .3);
-      B.anchor.position.copy(B.group.worldToLocal(tip.clone())); B.stick.position.copy(B.group.worldToLocal(hw.clone().addScaledVector(dirW, .15)));
-      B.stick.quaternion.copy(B.group.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(new THREE.Quaternion().setFromUnitVectors(Y, dirW)));
-      B.stick.visible = sp > .05;
+      // sparkler sticks follow the hands (boy right, girl left)
+      for (const [av, side] of [[B, 'Right'], [G, 'Left']]) {
+        const hw = av.rig.pos(side + 'Hand', new THREE.Vector3()), fw = av.rig.pos(side + 'HandMiddle1', new THREE.Vector3());
+        const dirW = fw.clone().sub(hw).normalize();
+        av.anchor.position.copy(av.group.worldToLocal(hw.clone().addScaledVector(dirW, .3)));
+        av.stick.position.copy(av.group.worldToLocal(hw.clone().addScaledVector(dirW, .15)));
+        av.stick.quaternion.copy(av.group.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(new THREE.Quaternion().setFromUnitVectors(Y, dirW)));
+        av.stick.visible = sp > .05;
+      }
     }
     // bunny
     const bn = this.bunny.userData, hop = this.walking ? Math.abs(Math.sin(this.phase * .9)) * .16 : Math.max(0, Math.sin(t * 2.2)) * .04;
