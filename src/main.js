@@ -26,7 +26,7 @@ let SAFE = 0, RESUME = 0;
 if (!REC && !qs.has('hq') && !qs.has('nosafe')) {
   try {
     const hb = +localStorage.getItem('dw_hb') || 0; SAFE = +localStorage.getItem('dw_safe') || 0;
-    if (hb && Date.now() - hb < 20000) { SAFE = Math.min(2, SAFE + 1); localStorage.setItem('dw_safe', SAFE); RESUME = +localStorage.getItem('dw_ch') || 0; }
+    if (hb && Date.now() - hb < 20000) { SAFE = Math.min(2, SAFE + 1); localStorage.setItem('dw_safe', SAFE); RESUME = localStorage.getItem('dw_ch') === '0b' ? .5 : (+localStorage.getItem('dw_ch') || 0); }
     setInterval(() => { try { localStorage.setItem('dw_hb', Date.now()); } catch (e) { } }, 1500);
     localStorage.setItem('dw_hb', Date.now());
     const bye = () => { try { localStorage.removeItem('dw_hb'); } catch (e) { } };
@@ -167,10 +167,12 @@ function caption(t, hold = 0) {
   after(.35, () => { if (k === capTok) { ui.caption.textContent = t; ui.caption.classList.add('on'); } });
 }
 function hideCaption() { capTok++; ui.caption.classList.remove('on'); }
+let skipCta = false;
 function cta(label) {
   return new Promise(res => {
+    if (skipCta) { skipCta = false; res(); return; }
     ui.ctaLabel.textContent = label; ui.cta.classList.add('on');
-    const h = () => { ui.cta.removeEventListener('click', h); ui.cta.classList.remove('on'); res(); };
+    const h = () => { try { localStorage.setItem('dw_ch', label.indexOf('phuljhadi') > 0 ? '0b' : (localStorage.getItem('dw_ch') || '0')); } catch (e) { } ui.cta.removeEventListener('click', h); ui.cta.classList.remove('on'); res(); };
     ui.cta.addEventListener('click', h);
     if (qs.has('auto')) after((parseFloat(qs.get('auto')) || 400) / 1000, () => ui.cta.click());
   });
@@ -437,9 +439,10 @@ function tick(raw, doRender) {
     const fps = frames / acc; acc = 0; frames = 0;
     if (fps < 30 && perfStage < 3 && T > 2.5) {
       perfStage++;
-      if (perfStage === 1) { PR = Math.max(.75, PR * .8); resize(); }
+      if (isMobile) { if (perfStage === 1) bloom.enabled = false; else if (perfStage === 2) couple.setFurVisible?.(false); }
+      else if (perfStage === 1) { PR = Math.max(.75, PR * .8); resize(); }
       else if (perfStage === 2) { PR = Math.max(.6, PR * .8); bloom.enabled = false; resize(); }
-      else { PR = .6; resize(); if (dir.shadow.map) { dir.shadow.mapSize.set(512, 512); dir.shadow.map.dispose(); dir.shadow.map = null; } couple.setFurVisible?.(false); }
+      else if (!isMobile) { PR = .6; resize(); if (dir.shadow.map) { dir.shadow.mapSize.set(512, 512); dir.shadow.map.dispose(); dir.shadow.map = null; } couple.setFurVisible?.(false); }
     }
   }
 }
@@ -496,9 +499,11 @@ async function boot(rec = false) {
   $('#intro .to-name').textContent = CFG.to;
   if (SAFE >= 2) couple.setFurVisible?.(false);
   enter.disabled = false; enter.innerHTML = enterTxt;
-  if (RESUME > 0) { hint('Wapas wahin se shuru…'); begin(RESUME); }
+  if (RESUME > 0) { hint('Wapas wahin se shuru…'); if (RESUME === .5) { skipCta = true; begin(0); } else begin(RESUME); }
 }
 function begin(r0) { try { audio.start(); } catch (e) { } ui.intro.classList.add('off'); $('#hud').classList.add('on'); cam.follow = null; run(r0); }
+const stopPTR = e => { if (e.touches && e.touches.length === 1 && !e.target.closest('input,textarea,#edit,#intro .card,#letter .paper')) e.preventDefault(); };
+document.addEventListener('touchmove', stopPTR, { passive: false });
 const wake = () => { try { if (!audio.ctx) audio.start(); else if (audio.ctx.state !== 'running') audio.ctx.resume(); } catch (e) { } };
 ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach(ev => addEventListener(ev, wake, { passive: true, capture: true }));
 $('#enter').addEventListener('click', async () => {
