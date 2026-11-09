@@ -24,3 +24,6 @@ cp dist.html index.html && cp dist.html build/index.html   # build/ is what Rend
 - Fireworks: "Happy Diwali" with his name below it
 - Love letter ends with her name
 - Redesigned clay diyas, realistic rabbit, quiff hair for the boy
+- Fireworks camera stays behind the couple and tilts up for the Happy Diwali text
+- Names: letter greets her, signed by him, ends with her name
+- Girl: glasses removed, original skin tone
