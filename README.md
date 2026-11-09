@@ -19,3 +19,8 @@ cp dist.html index.html && cp dist.html build/index.html   # build/ is what Rend
 - Phones: the page opens the greeting card immediately while the 3D street loads; if a tab ever crashes it resumes where it left off in a lighter mode.
 - Past bug (fixed): an invisible finale "Phir se dekho" button sat on top of the "Light the phuljhadi" button and reloaded the page on tap.
 - `src/assets/boy.glb` and `girl.glb` are Ready Player Me style avatars taken from a public tutorial repo (wass08/r3f-virtual-girlfriend-frontend and a three.js example). Their licence is not stated, so keep this repo for personal use or swap in your own avatars.
+
+## Latest changes
+- Fireworks: "Happy Diwali" with his name below it
+- Love letter ends with her name
+- Redesigned clay diyas, realistic rabbit, quiff hair for the boy
